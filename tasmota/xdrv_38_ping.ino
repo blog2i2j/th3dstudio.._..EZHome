@@ -1,7 +1,7 @@
 /*
   xdrv_38_ping.ino - support for ICMP Ping
 
-  Copyright (C) 2020  Theo Arends and Stephan Hadinger
+  Copyright (C) 2021  Theo Arends and Stephan Hadinger
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -131,8 +131,12 @@ extern "C" {
     if ((p->len == p->tot_len) && (p->next == nullptr)) {
       ip_addr_t ping_target;
       struct icmp_echo_hdr *iecho;
-
+#ifdef ESP8266
       ping_target.addr = ping->ip;
+#endif  // ESP8266
+#ifdef ESP32
+      ping_target.u_addr.ip4.addr = ping->ip;
+#endif  // ESP32
       iecho = (struct icmp_echo_hdr *) p->payload;
 
       t_ping_prepare_echo(iecho, ping_size, ping);
@@ -167,7 +171,12 @@ extern "C" {
   // Reveived packet
   //
   static uint8_t ICACHE_FLASH_ATTR t_ping_recv(void *arg, struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *addr) {
+#ifdef ESP8266
     Ping_t *ping = t_ping_find(addr->addr);
+#endif  // ESP8266
+#ifdef ESP32
+    Ping_t *ping = t_ping_find(addr->u_addr.ip4.addr);
+#endif  // ESP32
 
     if (nullptr == ping) {    // unknown source address
       return 0;               // don't eat the packet and ignore it
@@ -237,14 +246,13 @@ extern "C" {
   int32_t t_ping_start(const char *hostname, uint32_t count) {
     IPAddress ipfull;
     if (!WiFi.hostByName(hostname, ipfull)) {
-      return -2;
+      ipfull = 0xFFFFFFFF;
     }
 
     uint32_t ip = ipfull;
-    if (0xFFFFFFFF == ip) { return -2; }    // invalid address
-    
+
     // check if pings are already ongoing for this IP
-    if (t_ping_find(ip)) {
+    if (0xFFFFFFFF != ip && t_ping_find(ip)) {
       return -1;
     }
 
@@ -262,6 +270,12 @@ extern "C" {
     ping->next = ping_head;
     ping_head = ping;         // insert at head
 
+    if (0xFFFFFFFF == ip) { // If invalid address, set as completed
+      ping->done = true;
+      return -2;
+    }
+
+    // send
     t_ping_register_pcb();
     t_ping_send(t_ping_pcb, ping);
 
@@ -284,24 +298,34 @@ void PingResponsePoll(void) {
       uint32_t success = ping->success_count;
       uint32_t ip = ping->ip;
 
-      Response_P(PSTR("{\"" D_JSON_PING "\":{\"%s\":{"
-                      "\"Reachable\":%s"
-                      ",\"IP\":\"%d.%d.%d.%d\""
-                      ",\"Success\":%d"
-                      ",\"Timeout\":%d"
-                      ",\"MinTime\":%d"
-                      ",\"MaxTime\":%d"
-                      ",\"AvgTime\":%d"
-                      "}}}"),
-                      ping->hostname.c_str(),
-                      success ? "true" : "false",
-                      ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, ip >> 24,
-                      success,
-                      ping->timeout_count,
-                      success ? ping->min_time : 0,
-                      ping->max_time,
-                      success ? ping->sum_time / success : 0
-                      );
+      if (0xFFFFFFFF == ip) {
+        Response_P(PSTR("{\"" D_JSON_PING "\":{\"%s\":{"
+                        "\"Reachable\":false"
+                        ",\"IP\":\"\""
+                        ",\"Success\":false"
+                        "}}}"),
+                        ping->hostname.c_str()
+                        );
+      } else {
+        Response_P(PSTR("{\"" D_JSON_PING "\":{\"%s\":{"
+                        "\"Reachable\":%s"
+                        ",\"IP\":\"%d.%d.%d.%d\""
+                        ",\"Success\":%d"
+                        ",\"Timeout\":%d"
+                        ",\"MinTime\":%d"
+                        ",\"MaxTime\":%d"
+                        ",\"AvgTime\":%d"
+                        "}}}"),
+                        ping->hostname.c_str(),
+                        success ? PSTR("true") : PSTR("false"),
+                        ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, ip >> 24,
+                        success,
+                        ping->timeout_count,
+                        success ? ping->min_time : 0,
+                        ping->max_time,
+                        success ? ping->sum_time / success : 0
+                        );
+      }
       MqttPublishPrefixTopicRulesProcess_P(RESULT_OR_TELE, PSTR(D_JSON_PING));
 
       // remove from linked list
@@ -333,14 +357,6 @@ void CmndPing(void) {
   } else if (-1 == res) {
     ResponseCmndChar_P(PSTR("Ping already ongoing for this IP"));
   } else {
-    Response_P(PSTR("{\"" D_JSON_PING "\":{\"%s\":{"
-                    "\"Reachable\":false"
-                    ",\"IP\":\"\""
-                    ",\"Success\":false"
-                    "}}}"),
-                    XdrvMailbox.data
-                    );
-    MqttPublishPrefixTopicRulesProcess_P(RESULT_OR_TELE, PSTR(D_JSON_PING));
     ResponseCmndChar_P(PSTR("Unable to resolve IP address"));
   }
 }

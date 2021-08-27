@@ -2,7 +2,7 @@
 
 ## Features
 
-- Built on Tasmota 8.5.X
+- Built on Tasmota 9.5.X
 - Presetup for our EZPlug products
 - Home Assistant discovery enabled by default
 - Works with OctoPrint-Tasmota plugin for Octoprint
@@ -18,7 +18,7 @@
 
 ## Using the EZPlug with "Vanilla" Tasmota
 
-Templates and directions are located in our help center here: [https://support.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota/](https://support.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota/)
+Templates and directions are located in our help center here: [https://www.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota/](https://www.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota//)
 
 ## Contribute to the Tasmota Project
 
