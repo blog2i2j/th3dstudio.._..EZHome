@@ -1,7 +1,7 @@
 /*
   xdrv_23_zigbee_1z_libs.ino - zigbee support for Tasmota, JSON replacement libs
 
-  Copyright (C) 2020  Theo Arends and Stephan Hadinger
+  Copyright (C) 2021  Theo Arends and Stephan Hadinger
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,9 +45,9 @@ int strcmp_PP(const char *p1, const char *p2) {
 }
 
 /*********************************************************************************************\
- * 
+ *
  * Variables for Rules from last Zigbee message received
- * 
+ *
 \*********************************************************************************************/
 
 typedef struct Z_LastMessageVars {
@@ -65,49 +65,9 @@ uint16_t Z_GetLastCluster(void) { return gZbLastMessage.cluster; }
 uint8_t  Z_GetLastEndpoint(void) { return gZbLastMessage.endpoint; }
 
 /*********************************************************************************************\
- * 
- * Class for attribute array of values
- * This is a helper function to generate a clean list of unsigned ints
- * 
-\*********************************************************************************************/
-
-class Z_json_array {
-public:
-
-  Z_json_array(): val("[]") {}     // start with empty array
-  void add(uint32_t uval32) {
-    // remove trailing ']'
-    val.remove(val.length()-1);
-    if (val.length() > 1) {      // if not empty, prefix with comma
-      val += ',';
-    }
-    val += uval32;
-    val += ']';
-  }
-  void addStrRaw(const char * sval) {
-    // remove trailing ']'
-    val.remove(val.length()-1);
-    if (val.length() > 1) {      // if not empty, prefix with comma
-      val += ',';
-    }
-    val += sval;
-    val += ']';
-  }
-  void addStr(const char * sval) {
-    addStrRaw(EscapeJSONString(sval).c_str());
-  }
-  String &toString(void) {
-    return val;
-  }
-
-private :
-  String val;
-};
-
-/*********************************************************************************************\
- * 
+ *
  * Class for single attribute
- * 
+ *
 \*********************************************************************************************/
 
 enum class Za_type : uint8_t {
@@ -143,8 +103,8 @@ public:
     float               fval;
     SBuffer*            bval;
     char*               sval;
-    class Z_attribute_list  * objval;
-    class Z_json_array      * arrval;
+    class Z_attribute_list   * objval;
+    class JsonGeneratorArray * arrval;
   } val;
   Za_type       type;             // uint8_t in size, type of attribute, see above
   bool          key_is_str;       // is the key a string?
@@ -166,7 +126,7 @@ public:
     attr_type(0xFF),
     attr_multiplier(1)
     {};
-  
+
   Z_attribute(const Z_attribute & rhs) {
     deepCopy(rhs);
   }
@@ -175,6 +135,7 @@ public:
     freeKey();
     freeVal();
     deepCopy(rhs);
+    return *this;
   }
 
   // Destructor, free memory that was allocated
@@ -205,6 +166,10 @@ public:
 
   void setBuf(const SBuffer &buf, size_t index, size_t len);
 
+  // specific formatters
+  void setHex32(uint32_t _val);
+  void setHex64(uint64_t _val);
+
   // set the string value
   // PMEM argument is allowed
   // string will be copied, so it can be changed later
@@ -217,7 +182,7 @@ public:
   }
 
   Z_attribute_list & newAttrList(void);
-  Z_json_array & newJsonArray(void);
+  JsonGeneratorArray & newJsonArray(void);
 
   inline bool isNum(void) const { return (type >= Za_type::Za_bool) && (type <= Za_type::Za_float); }
   inline bool isNone(void) const { return (type == Za_type::Za_none);}
@@ -226,6 +191,9 @@ public:
   int32_t getInt(void) const;
   uint32_t getUInt(void) const;
   bool getBool(void) const;
+  // optimistically try to get any value as literal or in string - double to not lose precision for 32 bits
+  double getOptimisticDouble(void) const;
+  //
   const SBuffer * getRaw(void) const;
 
   // always return a point to a string, if not defined then empty string.
@@ -248,9 +216,9 @@ protected:
 };
 
 /*********************************************************************************************\
- * 
+ *
  * Class for attribute ordered list
- * 
+ *
 \*********************************************************************************************/
 
 
@@ -296,6 +264,8 @@ public:
   inline Z_attribute & addAttribute(const __FlashStringHelper * name, uint8_t suffix = 0) {
     return addAttribute((const char*) name, true, suffix);
   }
+  // smaller version called often to reduce code size
+  Z_attribute & addAttributePMEM(const char * name);
 
   // Remove from list by reference, if null or not found, then do nothing
   inline void removeAttribute(const Z_attribute * attr) { remove(attr); }
@@ -336,10 +306,15 @@ public:
   bool mergeList(const Z_attribute_list &list2);
 };
 
+
+Z_attribute & Z_attribute_list::addAttributePMEM(const char * name) {
+  return addAttribute(name, true, 0);
+}
+
 /*********************************************************************************************\
- * 
+ *
  * Implementation for Z_attribute
- * 
+ *
 \*********************************************************************************************/
 
 // free any allocated memoruy for keys
@@ -420,6 +395,17 @@ void Z_attribute::setBuf(const SBuffer &buf, size_t index, size_t len) {
   type = Za_type::Za_raw;
 }
 
+void Z_attribute::setHex32(uint32_t _val) {
+  char hex[8];
+  snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), _val);
+  setStr(hex);
+}
+void Z_attribute::setHex64(uint64_t _val) {
+  char hex[22];
+  ext_snprintf_P(hex, sizeof(hex), PSTR("0x%_X"), &_val);
+  setStr(hex);
+}
+
 // set the string value
 // PMEM argument is allowed
 // string will be copied, so it can be changed later
@@ -446,14 +432,25 @@ Z_attribute_list & Z_attribute::newAttrList(void) {
   return *val.objval;
 }
 
-Z_json_array & Z_attribute::newJsonArray(void) {
+JsonGeneratorArray & Z_attribute::newJsonArray(void) {
   freeVal();
-  val.arrval = new Z_json_array();
+  val.arrval = new JsonGeneratorArray();
   type = Za_type::Za_arr;
   return *val.arrval;
 }
 
 // get num values
+double Z_attribute::getOptimisticDouble(void) const {
+  switch (type) {
+    case Za_type::Za_bool:
+    case Za_type::Za_uint:    return (double) val.uval32;
+    case Za_type::Za_int:     return (double) val.ival32;
+    case Za_type::Za_float:   return (double) val.fval;
+    case Za_type::Za_str:     return JsonParserToken::json_strtof(val.sval);
+    default:                  return 0.0;
+  }
+}
+
 float Z_attribute::getFloat(void) const {
   switch (type) {
     case Za_type::Za_bool:
@@ -554,7 +551,7 @@ bool Z_attribute::equalsVal(const Z_attribute & attr2) const {
     if (val.uval32 != attr2.val.uval32) { return false; }
   } else if (type == Za_type::Za_raw) {
     // compare 2 Static buffers
-    return equalsSBuffer(val.bval, attr2.val.bval);
+    return SBuffer::equalsSBuffer(val.bval, attr2.val.bval);
   } else if (type == Za_type::Za_str) {
     // if (val_str_raw != attr2.val_str_raw) { return false; }
     if (strcmp_PP(val.sval, attr2.val.sval)) { return false; }
@@ -594,7 +591,7 @@ String Z_attribute::toString(bool prefix_comma) const {
   // value part
   switch (type) {
   case Za_type::Za_none:
-    res += "null";
+    res += F("null");
     break;
   case Za_type::Za_bool:
     res += val.uval32 ? F("true") : F("false");
@@ -653,7 +650,9 @@ String Z_attribute::toString(bool prefix_comma) const {
     if (val.arrval) {
       res += val.arrval->toString();
     } else {
-      res += "[]";
+      // res += '[';
+      // res += ']';
+      res += F("[]");
     }
     break;
   }
@@ -699,6 +698,8 @@ void Z_attribute::freeVal(void) {
     case Za_type::Za_arr:
       if (val.arrval) { delete val.arrval; val.arrval = nullptr; }
       break;
+    default:
+      break;
   }
 }
 
@@ -732,9 +733,9 @@ void Z_attribute::deepCopy(const Z_attribute & rhs) {
 }
 
 /*********************************************************************************************\
- * 
+ *
  * Implementation for Z_attribute_list
- * 
+ *
 \*********************************************************************************************/
 // add a cluster/attr_id attribute at the end of the list
 Z_attribute & Z_attribute_list::addAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix) {
@@ -849,11 +850,10 @@ Z_attribute & Z_attribute_list::findOrCreateAttribute(const char * name, uint8_t
 
 // same but passing a Z_attribute as key
 Z_attribute & Z_attribute_list::findOrCreateAttribute(const Z_attribute &attr) {
-  if (attr.key_is_str) {
-    return findOrCreateAttribute(attr.key.key, attr.key_suffix);
-  } else {
-    return findOrCreateAttribute(attr.key.id.cluster, attr.key.id.attr_id, attr.key_suffix);
-  }
+  Z_attribute & ret = attr.key_is_str ? findOrCreateAttribute(attr.key.key, attr.key_suffix)
+                                      : findOrCreateAttribute(attr.key.id.cluster, attr.key.id.attr_id, attr.key_suffix);
+  ret.key_suffix = attr.key_suffix;
+  return ret;
 }
 // replace the entire content with new attribute or create
 Z_attribute & Z_attribute_list::replaceOrCreate(const Z_attribute &attr) {
@@ -870,9 +870,17 @@ bool Z_attribute_list::mergeList(const Z_attribute_list &attr_list) {
   } else if (0xFF != attr_list.src_ep) {
     if (src_ep != attr_list.src_ep) { return false; }
   }
+  // Check group address
+  if (0xFFFF == group_id) {
+    group_id = attr_list.group_id;
+  } else if (0xFFFF != attr_list.group_id) {
+    if (group_id != attr_list.group_id) { return false; }
+  }
+  // copy LQI
   if (0xFF != attr_list.lqi) {
     lqi = attr_list.lqi;
   }
+  // merge attributes
   for (auto & attr : attr_list) {
     replaceOrCreate(attr);
   }
