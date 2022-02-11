@@ -339,12 +339,19 @@ static void free_lstring(bvm *vm, bgcobject *obj)
     }
 }
 
+static void free_instance(bvm *vm, bgcobject *obj)
+{
+    binstance *o = cast_instance(obj);
+    int nvar = be_instance_member_count(o);
+    be_free(vm, obj, sizeof(binstance) + sizeof(bvalue) * (nvar - 1));
+}
+
 static void free_object(bvm *vm, bgcobject *obj)
 {
-    switch (obj->type) {
+    switch (var_type(obj)) {
     case BE_STRING: free_lstring(vm, obj); break; /* long string */
     case BE_CLASS: be_free(vm, obj, sizeof(bclass)); break;
-    case BE_INSTANCE: be_free(vm, obj, sizeof(binstance)); break;
+    case BE_INSTANCE: free_instance(vm, obj); break;
     case BE_MAP: be_map_delete(vm, cast_map(obj)); break;
     case BE_LIST: be_list_delete(vm, cast_list(obj)); break;
     case BE_CLOSURE: free_closure(vm, obj); break;
@@ -451,10 +458,13 @@ static void destruct_object(bvm *vm, bgcobject *obj)
         int type;
         binstance *ins = cast_instance(obj);
         /* does not GC when creating the string "deinit". */
-        type = be_instance_member(vm, ins, str_literal(vm, "deinit"), vm->top);
+        type = be_instance_member_simple(vm, ins, str_literal(vm, "deinit"), vm->top);
         be_incrtop(vm);
         if (basetype(type) == BE_FUNCTION) {
-            be_dofunc(vm, vm->top - 1, 1);
+            var_setinstance(vm->top, ins);  /* push instance on stack as arg 1 */
+            be_incrtop(vm);
+            be_dofunc(vm, vm->top - 2, 1);  /* warning, there shoudln't be any exception raised here, or the gc stops */
+            be_stackpop(vm, 1);
         }
         be_stackpop(vm, 1);
     }
@@ -487,6 +497,9 @@ static void delete_white(bvm *vm)
                 prev->next = next;
             }
             free_object(vm, node);
+#if BE_USE_PERF_COUNTERS
+            vm->counter_gc_freed++;
+#endif
         } else {
             gc_setwhite(node);
             prev = node;
@@ -527,6 +540,10 @@ void be_gc_collect(bvm *vm)
     if (vm->gc.status & GC_HALT) {
         return; /* the GC cannot run for some reason */
     }
+#if BE_USE_PERF_COUNTERS
+    vm->counter_gc_kept = 0;
+    vm->counter_gc_freed = 0;
+#endif
 #if BE_USE_OBSERVABILITY_HOOK
     if (vm->obshook != NULL)
         (*vm->obshook)(vm, BE_OBS_GC_START, vm->gc.usage);
@@ -549,6 +566,6 @@ void be_gc_collect(bvm *vm)
     vm->gc.threshold = next_threshold(vm->gc);
 #if BE_USE_OBSERVABILITY_HOOK
     if (vm->obshook != NULL)
-        (*vm->obshook)(vm, BE_OBS_GC_END, vm->gc.usage);
+        (*vm->obshook)(vm, BE_OBS_GC_END, vm->gc.usage, vm->counter_gc_kept, vm->counter_gc_freed);
 #endif
 }

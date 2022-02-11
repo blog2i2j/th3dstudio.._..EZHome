@@ -67,15 +67,16 @@
 //********************************************************************************************
 
 #ifndef ETH_ADDRESS
-#define ETH_ADDRESS       0                      // esp_eth.h eth_phy_base_t:   0 = PHY0 .. 31 = PHY31
+#define ETH_ADDRESS       0                      // ETH.h uint8_t:          0 = PHY0 .. 31 = PHY31
 #endif
 
 #ifndef ETH_TYPE
-#define ETH_TYPE          ETH_PHY_LAN8720        // ETH.h eth_phy_type_t:       0 = ETH_PHY_LAN8720, 1 = ETH_PHY_TLK110, 2 = ETH_PHY_IP101
+#define ETH_TYPE          ETH_PHY_LAN8720        // ETH.h eth_phy_type_t:   0 = ETH_PHY_LAN8720, 1 = ETH_PHY_TLK110/ETH_PHY_IP101, 2 = ETH_PHY_RTL8201, 3 = ETH_PHY_DP83848, 4 = ETH_PHY_DM9051, 5 = ETH_PHY_KSZ8081
+
 #endif
 
 #ifndef ETH_CLKMODE
-#define ETH_CLKMODE       ETH_CLOCK_GPIO0_IN     // esp_eth.h eth_clock_mode_t: 0 = ETH_CLOCK_GPIO0_IN, 1 = ETH_CLOCK_GPIO0_OUT, 2 = ETH_CLOCK_GPIO16_OUT, 3 = ETH_CLOCK_GPIO17_OUT
+#define ETH_CLKMODE       ETH_CLOCK_GPIO0_IN     // ETH.h eth_clock_mode_t: 0 = ETH_CLOCK_GPIO0_IN, 1 = ETH_CLOCK_GPIO0_OUT, 2 = ETH_CLOCK_GPIO16_OUT, 3 = ETH_CLOCK_GPIO17_OUT
 #endif
 */
 
@@ -85,27 +86,28 @@ char eth_hostname[sizeof(TasmotaGlobal.hostname)];
 
 void EthernetEvent(WiFiEvent_t event) {
   switch (event) {
-    case SYSTEM_EVENT_ETH_START:
+    case ARDUINO_EVENT_ETH_START:
       AddLog(LOG_LEVEL_DEBUG, PSTR("ETH: " D_ATTEMPTING_CONNECTION));
       ETH.setHostname(eth_hostname);
       break;
-    case SYSTEM_EVENT_ETH_CONNECTED:
+    case ARDUINO_EVENT_ETH_CONNECTED:
       AddLog(LOG_LEVEL_INFO, PSTR("ETH: " D_CONNECTED " at %dMbps%s"),
         ETH.linkSpeed(), (ETH.fullDuplex()) ? " Full Duplex" : "");
       break;
-    case SYSTEM_EVENT_ETH_GOT_IP:
+    case ARDUINO_EVENT_ETH_GOT_IP:
       AddLog(LOG_LEVEL_DEBUG, PSTR("ETH: Mac %s, IPAddress %_I, Hostname %s"),
         ETH.macAddress().c_str(), (uint32_t)ETH.localIP(), eth_hostname);
       Settings->ipv4_address[1] = (uint32_t)ETH.gatewayIP();
       Settings->ipv4_address[2] = (uint32_t)ETH.subnetMask();
       Settings->ipv4_address[3] = (uint32_t)ETH.dnsIP();
+      Settings->ipv4_address[4] = (uint32_t)ETH.dnsIP(1);
       TasmotaGlobal.global_state.eth_down = 0;
       break;
-    case SYSTEM_EVENT_ETH_DISCONNECTED:
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
       AddLog(LOG_LEVEL_INFO, PSTR("ETH: Disconnected"));
       TasmotaGlobal.global_state.eth_down = 1;
       break;
-    case SYSTEM_EVENT_ETH_STOP:
+    case ARDUINO_EVENT_ETH_STOP:
       AddLog(LOG_LEVEL_DEBUG, PSTR("ETH: Stopped"));
       TasmotaGlobal.global_state.eth_down = 1;
       break;
@@ -127,9 +129,9 @@ void EthernetInit(void) {
     Settings->eth_clk_mode = ETH_CLOCK_GPIO0_IN;  // EthClockMode
   }
 
-//  snprintf_P(Eth.hostname, sizeof(Eth.hostname), PSTR("%s_eth"), TasmotaGlobal.hostname);
-  strlcpy(eth_hostname, TasmotaGlobal.hostname, sizeof(eth_hostname) -5);  // Make sure there is room for "_eth"
-  strcat(eth_hostname, "_eth");
+//  snprintf_P(Eth.hostname, sizeof(Eth.hostname), PSTR("%s-eth"), TasmotaGlobal.hostname);
+  strlcpy(eth_hostname, TasmotaGlobal.hostname, sizeof(eth_hostname) -5);  // Make sure there is room for "-eth"
+  strcat(eth_hostname, "-eth");
 
   WiFi.onEvent(EthernetEvent);
 

@@ -167,7 +167,7 @@ void ButtonHandler(void) {
     if (PinUsed(GPIO_KEY1, button_index)) {
       button_present = 1;
 #ifdef ESP32
-#ifndef CONFIG_IDF_TARGET_ESP32C3      
+#ifndef CONFIG_IDF_TARGET_ESP32C3
       if (bitRead(Button.touch_mask, button_index)) {          // Touch
         uint32_t _value = touchRead(Pin(GPIO_KEY1, button_index));
         button = NOT_PRESSED;
@@ -313,6 +313,13 @@ void ButtonHandler(void) {
                   }
                 }
               }
+
+              XdrvMailbox.index = button_index;
+              XdrvMailbox.payload = Button.press_counter[button_index];
+              if (XdrvCall(FUNC_BUTTON_MULTI_PRESSED)) {
+                // Serviced
+              } else
+
 #ifdef ROTARY_V1
               if (!RotaryButtonPressed(button_index)) {
 #endif
@@ -320,9 +327,9 @@ void ButtonHandler(void) {
                   // Success
                 } else {
                   if (Button.press_counter[button_index] < 6) { // Single to Penta press
-                    if (WifiState() > WIFI_RESTART) {           // Wifimanager active
-                      TasmotaGlobal.restart_flag = 1;
-                    }
+//                    if (WifiState() > WIFI_RESTART) {           // Wifimanager active
+//                      TasmotaGlobal.restart_flag = 1;
+//                    }
                     if (!Settings->flag3.mqtt_buttons) {         // SetOption73 - Detach buttons from relays and enable MQTT action state for multipress
                       if (Button.press_counter[button_index] == 1) {  // By default first press always send a TOGGLE (2)
                         ExecuteCommandPower(button_index + Button.press_counter[button_index], POWER_TOGGLE, SRC_BUTTON);

@@ -130,8 +130,6 @@ String EthernetMacAddress(void);
 #define ARDUINO_CORE_RELEASE        ARDUINO_ESP32_RELEASE
 #endif  // ARDUINO_ESP32_RELEASE
 
-#define USE_UFILESYS
-
 #undef FIRMWARE_MINIMAL                            // Minimal is not supported as not needed
 
 // Hardware has no ESP32
@@ -159,38 +157,10 @@ String EthernetMacAddress(void);
 #endif  // ESP32
 
 /*********************************************************************************************\
- * Mandatory defines satisfying disabled defines
+ * Fallback parameters
 \*********************************************************************************************/
 
-#ifdef USE_EMULATION_HUE
-#define USE_EMULATION
-#endif
-#ifdef USE_EMULATION_WEMO
-#define USE_EMULATION
-#endif
-
-// Convert legacy slave to client
-#ifdef USE_TASMOTA_SLAVE
-#define USE_TASMOTA_CLIENT
-#endif
-#ifdef USE_TASMOTA_SLAVE_FLASH_SPEED
-#define USE_TASMOTA_CLIENT_FLASH_SPEED USE_TASMOTA_SLAVE_FLASH_SPEED
-#endif
-#ifdef USE_TASMOTA_SLAVE_SERIAL_SPEED
-#define USE_TASMOTA_CLIENT_SERIAL_SPEED USE_TASMOTA_SLAVE_SERIAL_SPEED
-#endif
-
-#ifdef USE_SCRIPT
-#define USE_UNISHOX_COMPRESSION                // Add support for string compression
-#endif
-#ifdef USE_ZIGBEE
-#define USE_UNISHOX_COMPRESSION                // Add support for string compression
-#endif
-#ifdef USE_EMULATION_HUE
-#define USE_UNISHOX_COMPRESSION                // Add support for string compression
-#endif
-
-#ifdef USE_PID
+#if defined(USE_PID) && (!defined(PID_USE_TIMPROP) || (PID_USE_TIMPROP > 0))
 #define USE_TIMEPROP
 #endif
                                                // See https://github.com/esp8266/Arduino/pull/4889
@@ -357,7 +327,7 @@ String EthernetMacAddress(void);
 #define DEFAULT_DIMMER_STEP         10
 #endif
 #ifndef DEFAULT_LIGHT_DIMMER
-#define DEFAULT_LIGHT_DIMMER        10
+#define DEFAULT_LIGHT_DIMMER        100
 #endif
 #ifndef DEFAULT_LIGHT_COMPONENT
 #define DEFAULT_LIGHT_COMPONENT     255
@@ -372,6 +342,25 @@ String EthernetMacAddress(void);
 #endif
 #ifndef STARTING_OFFSET
 #define STARTING_OFFSET             30         // NOVA SDS parameter used in settings
+#endif
+
+#ifndef WIFI_RGX_STATE
+#define WIFI_RGX_STATE              0
+#endif
+#ifndef WIFI_RGX_NAPT
+#define WIFI_RGX_NAPT               0
+#endif
+#ifndef WIFI_RGX_SSID
+#define WIFI_RGX_SSID               ""
+#endif
+#ifndef WIFI_RGX_PASSWORD
+#define WIFI_RGX_PASSWORD           ""
+#endif
+#ifndef WIFI_RGX_IP_ADDRESS
+#define WIFI_RGX_IP_ADDRESS         "192.168.99.1"
+#endif
+#ifndef WIFI_RGX_SUBNETMASK
+#define WIFI_RGX_SUBNETMASK         "255.255.255.0"
 #endif
 
 /*********************************************************************************************\
@@ -500,6 +489,28 @@ bool first_device_group_is_local = true;
 #define DEBUG_TRACE_LOG(...)
 #endif
 
+#ifdef USE_DEBUG_DRIVER
+#define SHOW_FREE_MEM(WHERE) ShowFreeMem(WHERE);
+#else
+#define SHOW_FREE_MEM(WHERE)
+#endif
+
+#ifndef USE_PROFILING
+#undef USE_PROFILE_DRIVER
+#undef USE_PROFILE_FUNCTION
+#endif
+
+#ifdef USE_PROFILE_DRIVER
+#define PROFILE_DRIVER(DRIVER, FUNCTION, START) AddLogDriver(DRIVER, FUNCTION, START)
+#else
+#define PROFILE_DRIVER(DRIVER, FUNCTION, START)
+#endif  // USE_PROFILE_DRIVER
+
+#ifdef USE_PROFILE_FUNCTION
+#define PROFILE_FUNCTION(DRIVER, INDEX, FUNCTION, START) AddLogFunction(DRIVER, INDEX, FUNCTION, START)
+#else
+#define PROFILE_FUNCTION(DRIVER, INDEX, FUNCTION, START)
+#endif  // USE_PROFILE_DRIVER
 
 /*********************************************************************************************\
  * Macro for SetOption synonyms
