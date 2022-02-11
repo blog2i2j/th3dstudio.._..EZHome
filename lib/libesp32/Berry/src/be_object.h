@@ -11,24 +11,34 @@
 #include "berry.h"
 
 /* basic types, do not change value */
-#define BE_NONE         (-1)    /* unknow type */
-#define BE_COMPTR       (-2)    /* common pointer */
 #define BE_NIL          0
 #define BE_INT          1
 #define BE_REAL         2
 #define BE_BOOL         3
-#define BE_FUNCTION     4
-#define BE_STRING       5
-#define BE_CLASS        6
-#define BE_INSTANCE     7
-#define BE_PROTO        8
-#define BE_LIST         9
-#define BE_MAP          10
-#define BE_MODULE       11
-#define BE_COMOBJ       12      /* common object */
+#define BE_NONE         4       /* unknown type */
+#define BE_COMPTR       5       /* common pointer */
+#define BE_INDEX        6       /* index for instance variable, previously BE_INT */
+#define BE_FUNCTION     7
+
+#define BE_GCOBJECT     16      /* from this type can be gced */
+
+#define BE_STRING       16
+#define BE_CLASS        17
+#define BE_INSTANCE     18
+#define BE_PROTO        19
+#define BE_LIST         20
+#define BE_MAP          21
+#define BE_MODULE       22
+#define BE_COMOBJ       23      /* common object */
+
 #define BE_NTVFUNC      ((0 << 5) | BE_FUNCTION)
 #define BE_CLOSURE      ((1 << 5) | BE_FUNCTION)
 #define BE_NTVCLOS      ((2 << 5) | BE_FUNCTION)
+#define BE_FUNC_STATIC  (1 << 7)
+
+#define func_isstatic(o)       (((o)->type & BE_FUNC_STATIC) != 0)
+#define func_setstatic(o)      ((o)->type |= BE_FUNC_STATIC)
+#define func_clearstatic(o)    ((o)->type &= ~BE_FUNC_STATIC)
 
 #define array_count(a)   (sizeof(a) / sizeof((a)[0]))
 
@@ -186,7 +196,7 @@ typedef const char* (*breader)(void*, size_t*);
 #define cast_bool(_v)           cast(bbool, _v)
 #define basetype(_t)            ((_t) & 0x1F)
 
-#define var_type(_v)            ((_v)->type)
+#define var_type(_v)            ((_v)->type & 0x7F)
 #define var_basetype(_v)        basetype((_v)->type)
 #define var_istype(_v, _t)      (var_type(_v) == _t)
 #define var_settype(_v, _t)     ((_v)->type = _t)
@@ -207,6 +217,8 @@ typedef const char* (*breader)(void*, size_t*);
 #define var_islist(_v)          var_istype(_v, BE_LIST)
 #define var_ismap(_v)           var_istype(_v, BE_MAP)
 #define var_ismodule(_v)        var_istype(_v, BE_MODULE)
+#define var_isindex(_v)         var_istype(_v, BE_INDEX)
+#define var_iscomptr(_v)        var_istype(_v, BE_COMPTR)
 #define var_isnumber(_v)        (var_isint(_v) || var_isreal(_v))
 
 #define var_setnil(_v)          var_settype(_v, BE_NIL)
@@ -223,6 +235,7 @@ typedef const char* (*breader)(void*, size_t*);
 #define var_setlist(_v, _o)     var_setobj(_v, BE_LIST, _o)
 #define var_setmap(_v, _o)      var_setobj(_v, BE_MAP, _o)
 #define var_setmodule(_v, _o)   var_setobj(_v, BE_MODULE, _o)
+#define var_setindex(_v, _i)      { var_settype(_v, BE_INDEX); (_v)->v.i = (_i); }
 #define var_setproto(_v, _o)    var_setobj(_v, BE_PROTO, _o)
 
 #define var_tobool(_v)          ((_v)->v.b)

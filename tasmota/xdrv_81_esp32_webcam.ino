@@ -81,8 +81,17 @@
 #include "esp_camera.h"
 #include "sensor.h"
 #include "fb_gfx.h"
-#include "fd_forward.h"
-#include "fr_forward.h"
+
+#ifdef USE_FACE_DETECT
+  #if ESP_IDF_VERSION <= ESP_IDF_VERSION_VAL(4, 0, 0)
+    #include "fd_forward.h"
+    #include "fr_forward.h"
+//    #pragma message("Face detection enabled")
+  #else
+    #pragma message("Face detection not supported from Tasmota with Arduino Core 2.0.x. Disabling")
+    #undef USE_FACE_DETECT
+  #endif
+#endif
 
 bool HttpCheckPriviledgedAccess(bool);
 extern ESP8266WebServer *Webserver;
@@ -252,7 +261,7 @@ uint32_t WcSetup(int32_t fsiz) {
   // if PSRAM IC present, init with UXGA resolution and higher JPEG quality
   //                      for larger pre-allocated frame buffer.
 
-  bool psram = psramFound();
+  bool psram = UsePSRAM();
   if (psram) {
     config.frame_size = FRAMESIZE_UXGA;
     config.jpeg_quality = 10;
@@ -791,6 +800,7 @@ void HandleWebcamMjpegTask(void) {
       _jpg_buf = wc_fb->buf;
     }
 
+    Wc.client.print("--" BOUNDARY "\r\n");
     Wc.client.printf("Content-Type: image/jpeg\r\n"
       "Content-Length: %d\r\n"
       "\r\n", static_cast<int>(_jpg_buf_len));
@@ -801,7 +811,8 @@ void HandleWebcamMjpegTask(void) {
       Wc.stream_active=0;
       AddLog(LOG_LEVEL_DEBUG, PSTR("CAM: Send fail"));
     }*/
-    Wc.client.print("\r\n--" BOUNDARY "\r\n");
+//    Wc.client.print("\r\n--" BOUNDARY "\r\n");
+    Wc.client.print("\r\n");
 
 #ifdef COPYFRAME
     if (tmp_picstore.buff) { free(tmp_picstore.buff); }
