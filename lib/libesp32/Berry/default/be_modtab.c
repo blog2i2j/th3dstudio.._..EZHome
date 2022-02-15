@@ -23,6 +23,10 @@ be_extern_native_module(solidify);
 be_extern_native_module(introspect);
 be_extern_native_module(strict);
 
+/* Berry extensions */
+#include "be_mapping.h"
+be_extern_native_module(cb);
+
 /* Tasmota specific */
 be_extern_native_module(python_compat);
 be_extern_native_module(re);
@@ -37,10 +41,18 @@ be_extern_native_module(webserver);
 be_extern_native_module(flash);
 be_extern_native_module(path);
 be_extern_native_module(unishox);
+be_extern_native_module(uuid);
 be_extern_native_module(animate);
 #ifdef USE_LVGL
 be_extern_native_module(lv);
+be_extern_native_module(lv_extra);
+be_extern_native_module(lv_tasmota);
 #endif // USE_LVGL
+
+#if defined(USE_MI_ESP32) && !defined(USE_BLE_ESP32)
+extern void be_load_MI32_class(bvm *vm);
+extern void be_load_BLE_class(bvm *vm);
+#endif //USE_MI_ESP32
 
 /* user-defined modules declare start */
 
@@ -85,6 +97,10 @@ BERRY_LOCAL const bntvmodule* const be_module_table[] = {
 #if BE_USE_STRICT_MODULE
     &be_native_module(strict),
 #endif
+
+    /* Berry extensions */
+    &be_native_module(cb),
+
     /* user-defined modules register start */
     
     &be_native_module(python_compat),
@@ -103,6 +119,7 @@ BERRY_LOCAL const bntvmodule* const be_module_table[] = {
     &be_native_module(light),
 #endif
 
+    &be_native_module(uuid),
 #ifdef USE_UNISHOX_COMPRESSION
     &be_native_module(unishox),
 #endif // USE_UNISHOX_COMPRESSION
@@ -110,6 +127,8 @@ BERRY_LOCAL const bntvmodule* const be_module_table[] = {
 
 #ifdef USE_LVGL
     &be_native_module(lv),
+    &be_native_module(lv_extra),
+    &be_native_module(lv_tasmota),
 #endif // USE_LVGL
 #ifdef USE_ENERGY_SENSOR
     &be_native_module(energy),
@@ -126,15 +145,18 @@ BERRY_LOCAL const bntvmodule* const be_module_table[] = {
 
 #ifdef ESP32
 extern void be_load_tasmota_ntvlib(bvm *vm);
+extern void be_load_light_state_class(bvm *vm);
 extern void be_load_wirelib(bvm *vm);
 extern void be_load_onewirelib(bvm *vm);
 extern void be_load_serial_lib(bvm *vm);
 extern void be_load_Driver_class(bvm *vm);
 extern void be_load_Timer_class(bvm *vm);
-extern void be_load_driver_i2c_lib(bvm *vm);
+extern void be_load_I2C_Driver_class(bvm *vm);
 extern void be_load_AXP192_class(bvm *vm);
 extern void be_load_md5_lib(bvm *vm);
 extern void be_load_webclient_lib(bvm *vm);
+extern void be_load_tcpclient_lib(bvm *vm);
+extern void be_load_udp_lib(bvm *vm);
 extern void be_load_crypto_lib(bvm *vm);
 extern void be_load_Leds_ntv_class(bvm *vm);
 extern void be_load_Leds_class(bvm *vm);
@@ -145,12 +167,11 @@ extern void be_load_ctypes_energy_definitions_lib(bvm *vm);
 
 #ifdef USE_I2S_AUDIO_BERRY
 extern void be_load_driver_audio_lib(bvm *vm);
+extern void be_load_driver_audio_opus_decoder(bvm *vm);
 #endif
 
 #ifdef USE_LVGL
-extern void be_load_lv_color_class(bvm *vm);
-extern void be_load_lv_font_class(bvm *vm);
-extern void be_load_LVGL_glob_class(bvm *vm);
+#include "lv_berry.h"
 // custom widgets
 extern void be_load_lv_signal_bars_class(bvm *vm);
 extern void be_load_lv_wifi_bars_class(bvm *vm);
@@ -176,12 +197,15 @@ BERRY_API void be_load_custom_libs(bvm *vm)
     be_load_md5_lib(vm);
     be_load_serial_lib(vm);
     be_load_ctypes_lib(vm);
+#ifdef USE_LIGHT
+    be_load_light_state_class(vm);
+#endif
 #ifdef USE_ALEXA_AVS
     be_load_crypto_lib(vm);
 #endif
 #ifdef USE_I2C
     be_load_wirelib(vm);
-    be_load_driver_i2c_lib(vm);
+    be_load_I2C_Driver_class(vm);
     be_load_AXP192_class(vm);
 #endif // USE_I2C
 #ifdef USE_ENERGY_SENSOR
@@ -189,6 +213,8 @@ BERRY_API void be_load_custom_libs(bvm *vm)
 #endif // USE_ENERGY_SENSOR
 #ifdef USE_WEBCLIENT
     be_load_webclient_lib(vm);
+    be_load_tcpclient_lib(vm);
+    be_load_udp_lib(vm);
 #endif // USE_WEBCLIENT
 #if defined(USE_ONEWIRE) || defined(USE_DS18x20)
     be_load_onewirelib(vm);
@@ -200,13 +226,11 @@ BERRY_API void be_load_custom_libs(bvm *vm)
 #endif // USE_WS2812
 #ifdef USE_I2S_AUDIO_BERRY
     be_load_driver_audio_lib(vm);
+    be_load_driver_audio_opus_decoder(vm);
 #endif
 #ifdef USE_LVGL
     // LVGL
-    be_load_lv_color_class(vm);
-    be_load_lv_font_class(vm);
-
-    be_load_LVGL_glob_class(vm);
+    be_load_lvgl_classes(vm);
     // custom widgets
     be_load_lv_signal_bars_class(vm);
     be_load_lv_wifi_bars_class(vm);
@@ -216,5 +240,9 @@ BERRY_API void be_load_custom_libs(bvm *vm)
     be_load_lv_wifi_arcs_icon_class(vm);
     be_load_lv_clock_icon_class(vm);
 #endif // USE_LVGL
+#if defined(USE_MI_ESP32) && !defined(USE_BLE_ESP32)
+    be_load_MI32_class(vm);
+    be_load_BLE_class(vm);
+#endif //USE_MI_ESP32
 }
 #endif

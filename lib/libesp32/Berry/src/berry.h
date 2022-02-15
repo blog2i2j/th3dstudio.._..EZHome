@@ -342,11 +342,11 @@ typedef struct bntvmodule {
     (bvalue*) _ktab,            /* ktab */                                        \
     (struct bproto**) _protos,  /* bproto **ptab */                               \
     (binstruction*) _code,      /* code */                                        \
-    _fname,                     /* name */                                        \
+    ((bstring*) _fname),        /* name */                                        \
     sizeof(*_code)/sizeof(binstruction),                        /* codesize */    \
     BE_IIF(_has_const)(sizeof(*_ktab)/sizeof(bvalue),0),        /* nconst */      \
     BE_IIF(_has_subproto)(sizeof(*_protos)/sizeof(bproto*),0),  /* proto */       \
-    _source,                    /* source */                                      \
+    ((bstring*) _source),        /* source */                                      \
     PROTO_RUNTIME_BLOCK                                                           \
     PROTO_VAR_INFO_BLOCK                                                          \
   }
@@ -402,11 +402,14 @@ typedef void(*bntvhook)(bvm *vm, bhookinfo *info);
 
 typedef void(*bobshook)(bvm *vm, int event, ...);
 enum beobshookevents {
+  BE_OBS_PCALL_ERROR,     /* called when be_callp() returned an error, most likely an exception */
   BE_OBS_GC_START,        /* start of GC, arg = allocated size */
   BE_OBS_GC_END,          /* end of GC, arg = allocated size */
   BE_OBS_VM_HEARTBEAT,    /* VM heartbeat called every million instructions */
   BE_OBS_STACK_RESIZE_START,    /* Berry stack resized */
 };
+
+typedef int (*bctypefunc)(bvm*, const void*);
 
 /* FFI functions */
 #define be_writestring(s)       be_writebuffer((s), strlen(s))
@@ -549,6 +552,8 @@ BERRY_API void be_vm_delete(bvm *vm);
 
 /* Observability hook */
 BERRY_API void be_set_obs_hook(bvm *vm, bobshook hook);
+BERRY_API void be_set_ctype_func_hanlder(bvm *vm, bctypefunc handler);
+BERRY_API bctypefunc be_get_ctype_func_hanlder(bvm *vm);
 
 /* code load APIs */
 BERRY_API int be_loadbuffer(bvm *vm,
