@@ -2,7 +2,7 @@
 
 ## Features
 
-- Built on Tasmota 10.1.0
+- Built on Tasmota 11.0.0
 - Presetup for our EZHome products
 	- EZPlug
 	- EZPlug Plus

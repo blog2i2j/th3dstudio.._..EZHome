@@ -55,7 +55,7 @@
   #define COUNTER_HOOK()
 #endif
 
-#if BE_USE_PERF_COUNTERS && BE_USE_OBSERVABILITY_HOOK
+#if BE_USE_PERF_COUNTERS
   #define VM_HEARTBEAT() \
     if ((vm->counter_ins & ((1<<(BE_VM_OBSERVABILITY_SAMPLING - 1))-1) ) == 0) { /* call every 2^BE_VM_OBSERVABILITY_SAMPLING instructions */    \
         if (vm->obshook != NULL)                                                    \
@@ -461,9 +461,8 @@ BERRY_API bvm* be_vm_new(void)
     be_gc_setpause(vm, 1);
     be_loadlibs(vm);
     vm->compopt = 0;
-#if BE_USE_OBSERVABILITY_HOOK
     vm->obshook = NULL;
-#endif
+    vm->ctypefunc = NULL;
 #if BE_USE_PERF_COUNTERS
     vm->counter_ins = 0;
     vm->counter_enter = 0;
@@ -598,8 +597,13 @@ newframe: /* a new call frame */
             if (var_isint(a) && var_isint(b)) {
                 var_setint(dst, ibinop(+, a, b));
             } else if (var_isnumber(a) && var_isnumber(b)) {
-                breal x = var2real(a), y = var2real(b);
-                var_setreal(dst, x + y);
+                union bvaldata x, y;        // TASMOTA workaround for ESP32 rev0 bug
+                x.i = a->v.i;
+                if (var_isint(a)) { x.r = (breal) x.i; }
+                y.i = b->v.i;
+                if (var_isint(b)) { y.r = (breal) y.i; }
+                // breal x = var2real(a), y = var2real(b);
+                var_setreal(dst, x.r + y.r);
             } else if (var_isstr(a) && var_isstr(b)) { /* strcat */
                 bstring *s = be_strcat(vm, var_tostr(a), var_tostr(b));
                 reg = vm->reg;
@@ -853,9 +857,9 @@ newframe: /* a new call frame */
                 reg = vm->reg;
                 bvalue *a = RA();
                 *a = a_temp;
-                if (basetype(type) == BE_FUNCTION) {
-                    if (func_isstatic(a)) {
-                        /* static method, don't bother with the instance */
+                if (var_basetype(a) == BE_FUNCTION) {
+                    if (func_isstatic(a) || (type == BE_INDEX)) {    /* if instance variable then we consider it's non-method */
+                       /* static method, don't bother with the instance */
                         a[1] = a_temp;
                         var_settype(a, NOT_METHOD);
                     } else {
@@ -1062,7 +1066,13 @@ newframe: /* a new call frame */
             if (!IGET_RA(ins)) {
                 be_except_block_setup(vm);
                 if (be_setjmp(vm->errjmp->b)) {
+                    bvalue *top = vm->top;
+                    bvalue e1 = top[0];
+                    bvalue e2 = top[1];
                     be_except_block_resume(vm);
+                    top = vm->top;
+                    top[0] = e1;
+                    top[1] = e2;
                     goto newframe;
                 }
                 reg = vm->reg;
@@ -1101,29 +1111,6 @@ newframe: /* a new call frame */
                 goto recall; /* call '()' method */
             }
             case BE_CLOSURE: {
-                // bvalue *v, *end;
-                // bproto *proto = var2cl(var)->proto;  /* get proto for closure */
-                // push_closure(vm, var, proto->nstack, mode);  /* prepare stack for closure */
-                // reg = vm->reg;  /* `reg` has changed, now new base register */
-                // v = reg + argc;  /* end of provided arguments */
-                // end = reg + proto->argc;  /* end of expected arguments */
-                // for (; v < end; ++v) {  /* set all not provided arguments to nil */
-                //     var_setnil(v);
-                // }
-                // if (proto->varg) {  /* there are vararg at the last argument, build the list */
-                //     /* code below uses mostly low-level calls for performance */
-                //     be_stack_require(vm, argc + 2);   /* make sure we don't overflow the stack */
-                //     bvalue *top_save = vm->top;  /* save original stack, we need fresh slots to create the 'list' instance */
-                //     vm->top = v;  /* move top of stack right after last argument */
-                //     be_newobject(vm, "list");  /* this creates 2 objects on stack: list instance, BE_LIST object */
-                //     blist *list = var_toobj(vm->top-1);  /* get low-level BE_LIST structure */
-                //     v = reg + proto->argc - 1;  /* last argument */
-                //     for (; v < reg + argc; v++) {
-                //         be_list_push(vm, list, v); /* push all varargs into list */       
-                //     }
-                //     *(reg + proto->argc - 1) = *(vm->top-2);  /* change the vararg argument to now contain the list instance */
-                //     vm->top = top_save;  /* restore top of stack pointer */
-                // }
                 prep_closure(vm, var - reg, argc, mode);
                 reg = vm->reg;  /* `reg` has changed, now new base register */
                 goto newframe;  /* continue execution of the closure */
@@ -1140,6 +1127,17 @@ newframe: /* a new call frame */
                 push_native(vm, var, argc, mode);
                 f(vm); /* call C primitive function */
                 ret_native(vm);
+                break;
+            }
+            case BE_CTYPE_FUNC: {
+                if (vm->ctypefunc) {
+                    push_native(vm, var, argc, mode);
+                    const void* args = var_toobj(var);
+                    vm->ctypefunc(vm, args);
+                    ret_native(vm);
+                } else {
+                    vm_error(vm, "internal_error", "missing ctype_func handler");
+                }
                 break;
             }
             case BE_MODULE: {
@@ -1195,7 +1193,7 @@ static void prep_closure(bvm *vm, int pos, int argc, int mode)
     for (v = vm->reg + argc; v <= end; ++v) {
         var_setnil(v);
     }
-    if (proto->varg) {  /* there are vararg at the last argument, build the list */
+    if (proto->varg & BE_VA_VARARG) {  /* there are vararg at the last argument, build the list */
         /* code below uses mostly low-level calls for performance */
         be_stack_require(vm, argc + 2);   /* make sure we don't overflow the stack */
         bvalue *top_save = vm->top;  /* save original stack, we need fresh slots to create the 'list' instance */
@@ -1269,7 +1267,15 @@ BERRY_API void be_set_obs_hook(bvm *vm, bobshook hook)
     (void)vm;       /* avoid comiler warning */
     (void)hook;     /* avoid comiler warning */
 
-#if BE_USE_OBSERVABILITY_HOOK
     vm->obshook = hook;
-#endif
+}
+
+BERRY_API void be_set_ctype_func_hanlder(bvm *vm, bctypefunc handler)
+{
+    vm->ctypefunc = handler;
+}
+
+BERRY_API bctypefunc be_get_ctype_func_hanlder(bvm *vm)
+{
+    return vm->ctypefunc;
 }

@@ -87,7 +87,7 @@ static bstring* sim2str(bvm *vm, bvalue *v)
     case BE_REAL:
         sprintf(sbuf, "%g", var_toreal(v));
         break;
-    case BE_CLOSURE: case BE_NTVCLOS: case BE_NTVFUNC:
+    case BE_CLOSURE: case BE_NTVCLOS: case BE_NTVFUNC: case BE_CTYPE_FUNC:
         sprintf(sbuf, "<function: %p>", var_toobj(v));
         break;
     case BE_CLASS:
@@ -578,7 +578,7 @@ static int str_format(bvm *vm)
                 break;
             case 's': {
                 const char *s = be_tostring(vm, index);
-                int len = be_strlen(vm, 2);
+                int len = be_strlen(vm, index);
                 if (len > 100 && strlen(mode) == 2) {
                     be_pushvalue(vm, index);
                 } else {
@@ -793,9 +793,6 @@ static int str_tr(bvm *vm)
         const char *p, *s = be_tostring(vm, 1);
         const char *t1 = be_tostring(vm, 2);
         const char *t2 = be_tostring(vm, 3);
-        if (strlen(t2) < strlen(t1)) {
-            be_raise(vm, "value_error", "invalid translation pattern");
-        }
         size_t len = (size_t)be_strlen(vm, 1);
         char *buf, *q;
         buf = be_pushbuffer(vm, len);
@@ -803,11 +800,17 @@ static int str_tr(bvm *vm)
         for (p = s, q = buf; *p != '\0'; ++p, ++q) {
             const char *p1, *p2;
             *q = *p;  /* default to no change */
-            for (p1=t1, p2=t2; *p1 != '\0'; ++p1, ++p2) {
+            for (p1=t1, p2=t2; *p1 != '\0'; ++p1) {
                 if (*p == *p1) {
-                    *q = *p2;
+                    if (*p2) {
+                        *q = *p2;
+                    } else {
+                        q--;    /* remove this char */
+                        len--;
+                    }
                     break;
                 }
+                if (*p2) { p2++; }
             }
         }
         be_pushnstring(vm, buf, len); /* make escape string from buffer */

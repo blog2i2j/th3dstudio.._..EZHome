@@ -17,6 +17,7 @@
 #include "be_decoder.h"
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 
 extern const bclass be_class_list;
 extern const bclass be_class_map;
@@ -36,6 +37,62 @@ extern const bclass be_class_map;
         logbuf(__VA_ARGS__);            \
         be_writestring(__lbuf);         \
     } while (0)
+
+/********************************************************************\
+ * Encode string to identifiers
+ * 
+ * `_X` is used as an escape marker
+\********************************************************************/
+static unsigned toidentifier_length(const char *s)
+{
+    unsigned len = 1;
+    const char * p = s;
+    while (*p) {
+        if (p[0] == '_' && p[1] == 'X') {
+            len += 3;
+            p += 2;
+        } else if (isalnum(p[0]) || p[0] == '_') {
+            p++;
+            len++;
+        } else {        // escape
+            p++;
+            len += 4;
+        }
+    }
+    return len;
+}
+
+inline static char hexdigit(int v)
+{
+    v = v & 0xF;
+    if (v >= 10)    return v - 10 + 'A';
+    return v + '0';
+}
+
+static void toidentifier(char *to, const char *p)
+{
+    while (*p) {
+        if (p[0] == '_' && p[1] == 'X') {
+            to[0] = '_';
+            to[1] = 'X';
+            to[2] = '_';
+            p += 2;
+            to += 3;
+        } else if (isalnum(p[0]) || p[0] == '_') {
+            *to = *p;
+            to++;
+            p++;
+        } else {        // escape
+            to[0] = '_';
+            to[1] = 'X';
+            to[2] = hexdigit((*p & 0xF0) >> 4);
+            to[3] = hexdigit(*p & 0x0F);
+            p++;
+            to += 4;
+        }
+    }
+    *to = 0;      // final NULL
+}
 
 static void m_solidify_bvalue(bvm *vm, bvalue * value, const char *classname, const char *key);
 
@@ -58,11 +115,15 @@ static void m_solidify_map(bvm *vm, bmap * map, const char *class_name)
             be_raise(vm, "internal_error", error);
         }
         int key_next = node->key.next;
-        size_t len = strlen(str(node->key.v.s));
         if (0xFFFFFF == key_next) {
             key_next = -1;      /* more readable */
         }
-        logfmt("        { be_nested_key(\"%s\", %i, %zu, %i), ", str(node->key.v.s), be_strhash(node->key.v.s), len >= 255 ? 255 : len, key_next);
+        /* convert the string literal to identifier */
+        const char * key = str(node->key.v.s);
+        size_t id_len = toidentifier_length(key);
+        char id_buf[id_len];
+        toidentifier(id_buf, key);
+        logfmt("        { be_const_key(%s, %i), ", id_buf, key_next);
         m_solidify_bvalue(vm, &node->value, class_name, str(node->key.v.s));
 
         logfmt(" },\n");
@@ -118,21 +179,28 @@ static void m_solidify_bvalue(bvm *vm, bvalue * value, const char *classname, co
         break;
     case BE_STRING:
         {
-            size_t len = strlen(str(var_tostr(value)));
+            const char * str = str(var_tostr(value));
+            size_t len = strlen(str);
             if (len >= 255) {
                 be_raise(vm, "internal_error", "Strings greater than 255 chars not supported yet");
             }
-            be_pushstring(vm, str(var_tostr(value)));
-            be_toescape(vm, -1, 'u');
-            logfmt("be_nested_str_literal(%s)", be_tostring(vm, -1));
-            be_pop(vm, 1);
+            size_t id_len = toidentifier_length(str);
+            char id_buf[id_len];
+            toidentifier(id_buf, str);
+            logfmt("be_nested_str(%s)", id_buf);
         }
         break;
     case BE_CLOSURE:
-        logfmt("be_const_%sclosure(%s%s%s_closure)",
-            func_isstatic(value) ? "static_" : "",
-            classname ? classname : "", classname ? "_" : "",
-            str(((bclosure*) var_toobj(value))->proto->name));
+        {
+            const char * func_name = str(((bclosure*) var_toobj(value))->proto->name);
+            size_t id_len = toidentifier_length(func_name);
+            char func_name_id[id_len];
+            toidentifier(func_name_id, func_name);
+            logfmt("be_const_%sclosure(%s%s%s_closure)",
+                func_isstatic(value) ? "static_" : "",
+                classname ? classname : "", classname ? "_" : "",
+                func_name_id);
+        }
         break;
     case BE_CLASS:
         logfmt("be_const_class(be_class_%s)", str(((bclass*) var_toobj(value))->name));
@@ -251,10 +319,16 @@ static void m_solidify_proto(bvm *vm, bproto *pr, const char * func_name, int bu
         logfmt("%*sNULL,                       /* no const */\n", indent, "");
     }
 
-    logfmt("%*s(be_nested_const_str(\"%s\", %i, %i)),\n", indent, "", str(pr->name), be_strhash(pr->name), str_len(pr->name));
-    // logfmt("%*s(be_nested_const_str(\"%s\", %i, %i)),\n", indent, "", func_source, be_strhash(pr->source), str_len(pr->source));
-    // hard-code source as "input" for solidified
-    logfmt("%*s((bstring*) &be_const_str_input),\n", indent, "");
+    /* convert the string literal to identifier */
+    {
+        const char * key = str(pr->name);
+        size_t id_len = toidentifier_length(key);
+        char id_buf[id_len];
+        toidentifier(id_buf, key);
+        logfmt("%*s&be_const_str_%s,\n", indent, "", id_buf);
+    }
+    // hard-code source as "solidified" for solidified
+    logfmt("%*s&be_const_str_solidified,\n", indent, "");
 
     logfmt("%*s( &(const binstruction[%2d]) {  /* code */\n", indent, "", pr->codesize);
     for (int pc = 0; pc < pr->codesize; pc++) {
@@ -296,9 +370,14 @@ static void m_solidify_closure(bvm *vm, bclosure *cl, const char * classname, in
     logfmt("** Solidified function: %s\n", func_name);
     logfmt("********************************************************************/\n");
 
-    logfmt("be_local_closure(%s%s%s,   /* name */\n",
-        classname ? classname : "", classname ? "_" : "",
-        func_name);
+    {
+        size_t id_len = toidentifier_length(func_name);
+        char func_name_id[id_len];
+        toidentifier(func_name_id, func_name);
+        logfmt("be_local_closure(%s%s%s,   /* name */\n",
+            classname ? classname : "", classname ? "_" : "",
+            func_name_id);
+    }
 
     m_solidify_proto(vm, pr, func_name, builtins, indent);
     logfmt("\n");
@@ -380,7 +459,7 @@ static void m_solidify_module(bvm *vm, bmodule *ml, int builtins)
         while ((node = be_map_next(ml->table, &iter)) != NULL) {
             if (var_isstr(&node->key) && var_isclosure(&node->value)) {
                 bclosure *f = var_toobj(&node->value);
-                m_solidify_closure(vm, f, NULL, builtins);
+                m_solidify_closure(vm, f, module_name, builtins);
             }
             if (var_isstr(&node->key) && var_isclass(&node->value)) {
                 bclass *cl = var_toobj(&node->value);

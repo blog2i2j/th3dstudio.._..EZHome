@@ -65,20 +65,14 @@
  **/
 #define BE_DEBUG_VAR_INFO               0
 
-/* Macro: BE_USE_OBSERVABILITY_HOOK
- * Use the obshook function to report low-level actions.
- * Default: 0
- **/
-#define BE_USE_OBSERVABILITY_HOOK       1
-
-/* Macro: BE_USE_OBSERVABILITY_HOOK
+/* Macro: BE_USE_PERF_COUNTERS
  * Use the obshook function to report low-level actions.
  * Default: 0
  **/
 #define BE_USE_PERF_COUNTERS            1
 
 /* Macro: BE_VM_OBSERVABILITY_SAMPLING
- * If BE_USE_OBSERVABILITY_HOOK == 1 and BE_USE_PERF_COUNTERS == 1
+ * If BE_USE_PERF_COUNTERS == 1
  * then the observability hook is called regularly in the VM loop
  * allowing to stop infinite loops or too-long running code.
  * The value is a power of 2.
@@ -220,6 +214,9 @@ extern "C" {
   extern void *berry_malloc(size_t size);
   extern void  berry_free(void *ptr);
   extern void *berry_realloc(void *ptr, size_t size);
+  extern void *berry_malloc32(size_t size);
+  extern void  berry_free32(void *ptr);
+  extern void *berry_realloc32(void *ptr, size_t size);
 #ifdef __cplusplus
 }
 #endif
@@ -247,7 +244,7 @@ extern "C" {
 /* Tasmota debug specific */
 #ifdef USE_BERRY_DEBUG
   #undef BE_DEBUG_RUNTIME_INFO
-  #define BE_DEBUG_RUNTIME_INFO 2 /* record line information in 16 bits */
+  #define BE_DEBUG_RUNTIME_INFO 1 /* record line information in 32 bits to be places in IRAM */
 #endif // USE_BERRY_DEBUG
 
 #endif

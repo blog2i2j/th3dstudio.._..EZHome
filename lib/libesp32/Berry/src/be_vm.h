@@ -100,10 +100,9 @@ struct bvm {
     bmap *ntvclass; /* native class table */
     blist *registry; /* registry list */
     struct bgc gc;
+    bctypefunc ctypefunc; /* handler to ctype_func */
     bbyte compopt; /* compilation options */
-#if BE_USE_OBSERVABILITY_HOOK
     bobshook obshook;
-#endif
 #if BE_USE_PERF_COUNTERS
     uint32_t counter_ins; /* instructions counter */
     uint32_t counter_enter; /* counter for times the VM was entered */
