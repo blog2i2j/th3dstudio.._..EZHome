@@ -40,6 +40,8 @@
  * SECTION 1
  * - After initial load any change here only take effect if CFG_HOLDER is changed too
 \*********************************************************************************************/
+// -- EZHome Firmware Version ---------------------
+#define EZHOME_VERSION "V2.1"
 
 // -- Master parameter control --------------------
 #define CFG_HOLDER             4617              // [Reset 1] Change this value (max 32000) to load SECTION1 configuration parameters to flash
