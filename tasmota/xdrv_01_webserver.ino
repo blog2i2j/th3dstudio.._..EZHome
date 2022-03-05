@@ -376,7 +376,7 @@ const char HTTP_COUNTER[] PROGMEM =
   "<br><div id='t' style='text-align:center;'></div>";
 
 const char HTTP_END[] PROGMEM =
-  "<div style='text-align:right;font-size:11px;'><hr/><a href='https://github.com/th3dstudio/EZHome' target='_blank' style='color:#aaa;'>Tasmota %s for EZHome Products " D_BY " TH3D Studio LLC</a></div>"
+  "<div style='text-align:right;font-size:11px;'><hr/><a href='https://github.com/th3dstudio/EZHome' target='_blank' style='color:#aaa;'>EZHome " EZHOME_VERSION " by TH3D Studio LLC | Tasmota %s Based</a></div>"
   "</div>"
   "</body>"
   "</html>";
