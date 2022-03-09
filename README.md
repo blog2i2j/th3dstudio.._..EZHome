@@ -14,7 +14,11 @@
 
 ## Updating your EZHome Device Firmware
 
-1. Use the web interface to pull the latest from our github releases.
+Use the web interface to pull the latest from our github releases.
+
+**OR**
+
+Download the firmware for your device and upload it to the device through its web interface.
 
 ## Using the EZHome Products with "Vanilla" Tasmota
 
