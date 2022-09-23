@@ -1202,7 +1202,7 @@ typedef struct MYTMPLT {
 
 // Supported ESP8266 hardware modules
 enum SupportedModulesESP8266 {
-  EZPLUG_V1, EZPLUG_PLUS_V1, EZBULB_V1, SONOFF_BASIC, SONOFF_RF, SONOFF_SV, SONOFF_TH, SONOFF_DUAL, SONOFF_POW, SONOFF_4CH, SONOFF_S2X, SLAMPHER, SONOFF_TOUCH,
+  EZPLUG_V1, EZPLUG_PLUS_V1, EZBULB_V1, EZBULB_FLOOD_V1, SONOFF_BASIC, SONOFF_RF, SONOFF_SV, SONOFF_TH, SONOFF_DUAL, SONOFF_POW, SONOFF_4CH, SONOFF_S2X, SLAMPHER, SONOFF_TOUCH,
   SONOFF_LED, CH1, CH4, MOTOR, ELECTRODRAGON, EXS_RELAY, WION, WEMOS, SONOFF_DEV, H801,
   SONOFF_SC, SONOFF_BN, SONOFF_4CHPRO, HUAFAN_SS, SONOFF_BRIDGE, SONOFF_B1, AILIGHT, SONOFF_T11, SONOFF_T12, SONOFF_T13,
   SUPLA1, WITTY, YUNSHAN, MAGICHOME, LUANIHVIO, KMC_70011, ARILUX_LC01, ARILUX_LC11, SONOFF_DUAL_R2, ARILUX_LC06,
@@ -1213,7 +1213,7 @@ enum SupportedModulesESP8266 {
   MAXMODULE };
 
 const char kModuleNames[] PROGMEM =
-  "EZPlug V1|EZPlug+ V1|EZBulb V1|Sonoff Basic|Sonoff RF|Sonoff SV|Sonoff TH|Sonoff Dual|Sonoff Pow|Sonoff 4CH|Sonoff S2X|Slampher|Sonoff Touch|"
+  "EZPlug V1|EZPlug+ V1|EZBulb V1|EZBulb Flood V1|Sonoff Basic|Sonoff RF|Sonoff SV|Sonoff TH|Sonoff Dual|Sonoff Pow|Sonoff 4CH|Sonoff S2X|Slampher|Sonoff Touch|"
   "Sonoff LED|1 Channel|4 Channel|Motor C/AC|ElectroDragon|EXS Relay(s)|WiOn|Generic|Sonoff Dev|H801|"
   "Sonoff SC|Sonoff BN-SZ|Sonoff 4CH Pro|Huafan SS|Sonoff Bridge|Sonoff B1|AiLight|Sonoff T1 1CH|Sonoff T1 2CH|Sonoff T1 3CH|"
   "Supla Espablo|Witty Cloud|Yunshan Relay|MagicHome|Luani HVIO|KMC 70011|Arilux LC01|Arilux LC11|Sonoff Dual R2|Arilux LC06|"
@@ -1227,6 +1227,7 @@ const uint8_t kModuleNiceList[] PROGMEM = {
   EZPLUG_V1,
   EZPLUG_PLUS_V1,
   EZBULB_V1,
+  EZBULB_FLOOD_V1,
   SONOFF_BASIC,        // Sonoff Relay Devices
   SONOFF_RF,
   SONOFF_TH,
@@ -1329,7 +1330,7 @@ const uint8_t kModuleNiceList[] PROGMEM = {
 };
 
 enum SupportedTemplates8285 {
-  TMP_EZPLUG_V1, TMP_EZPLUG_PLUS_V1, TMP_EZBULB_V1, TMP_SONOFF_BASIC, TMP_SONOFF_SV, TMP_SONOFF_DUAL, TMP_SONOFF_POW, TMP_SONOFF_LED, TMP_ELECTRODRAGON,
+  TMP_EZPLUG_V1, TMP_EZPLUG_PLUS_V1, TMP_EZBULB_V1, TMP_EZBULB_FLOOD_V1, TMP_SONOFF_BASIC, TMP_SONOFF_SV, TMP_SONOFF_DUAL, TMP_SONOFF_POW, TMP_SONOFF_LED, TMP_ELECTRODRAGON,
   TMP_EXS_RELAY, TMP_WION, TMP_SONOFF_DEV, TMP_H801, TMP_SONOFF_SC, TMP_SONOFF_BN, TMP_HUAFAN_SS, TMP_SONOFF_BRIDGE,
   TMP_SONOFF_B1, TMP_AILIGHT, TMP_SONOFF_T11, TMP_SUPLA1, TMP_WITTY, TMP_YUNSHAN, TMP_MAGICHOME,
   TMP_LUANIHVIO, TMP_KMC_70011, TMP_ARILUX_LC01, TMP_ARILUX_LC11, TMP_ARILUX_LC06, TMP_ZENGGE_ZF_WF017,
@@ -1347,6 +1348,7 @@ const uint8_t kModuleTemplateList[MAXMODULE] PROGMEM = {
   TMP_EZPLUG_V1,
   TMP_EZPLUG_PLUS_V1,
   TMP_EZBULB_V1,
+  TMP_EZBULB_FLOOD_V1,
   TMP_SONOFF_BASIC,
   TMP_SONOFF_BASIC,     // SONOFF_RF
   TMP_SONOFF_SV,
@@ -1484,6 +1486,26 @@ const mytmplt8266 kModules8266[TMP_MAXMODULE_8285] PROGMEM = {
                         // GPIO11 (SD_CMD   Flash)
     GPI8_PWM2,          // GPIO12 PWM Green
     0,                  // GPIO13 
+    GPI8_PWM3,          // GPIO14 PWM Blue
+    0,                  // GPIO15
+    0,                  // GPIO16
+    0                   // ADC0 Analog input
+  },
+  {                     // TH3D Bulb Flood V1 (ESP8266)
+    0,                  // GPIO00 Button
+    0,                  // GPIO01 Serial RXD and Optional sensor
+    0,                  // GPIO02 
+    0,                  // GPIO03 Serial TXD and Optional sensor
+    GPI8_PWM1,          // GPIO04 PWM Red
+    GPI8_PWM4,          // GPIO05 PWM Cool White
+                        // GPIO06 (SD_CLK   Flash)
+                        // GPIO07 (SD_DATA0 Flash QIO/DIO/DOUT)
+                        // GPIO08 (SD_DATA1 Flash QIO/DIO/DOUT)
+                        // GPIO09 (SD_DATA2 Flash QIO or ESP8285)
+                        // GPIO10 (SD_DATA3 Flash QIO or ESP8285)
+                        // GPIO11 (SD_CMD   Flash)
+    GPI8_PWM2,          // GPIO12 PWM Green
+    GPI8_PWM5,          // GPIO13 PWM Warm White
     GPI8_PWM3,          // GPIO14 PWM Blue
     0,                  // GPIO15
     0,                  // GPIO16

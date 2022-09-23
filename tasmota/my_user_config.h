@@ -41,7 +41,7 @@
  * - After initial load any change here only take effect if CFG_HOLDER is changed too
 \*********************************************************************************************/
 // -- EZHome Firmware Version ---------------------
-#define EZHOME_VERSION "V2.1"
+#define EZHOME_VERSION "V2.1a"
 
 // -- Master parameter control --------------------
 #define CFG_HOLDER             4617              // [Reset 1] Change this value (max 32000) to load SECTION1 configuration parameters to flash
@@ -53,6 +53,7 @@
 //#define EZPLUG_V1_BUILD
 //#define EZPLUG_PLUS_V1_BUILD
 //#define EZBULB_V1_BUILD
+//#define EZBULB_FLOOD_V1_BUILD
 
 // -- Project -------------------------------------
 #ifdef EZPLUG_V1_BUILD
@@ -79,6 +80,16 @@
 	#define DEFAULT_LIGHT_DIMMER        100
 	#ifdef ESP8266
 		#define FALLBACK_MODULE        EZBULB_V1      // [Module2] Select default module on fast reboot where USER_MODULE is user template
+		//#define USER_TEMPLATE "{\"NAME\":\"Generic\",\"GPIO\":[1,1,1,1,1,1,1,1,1,1,1,1,1,1],\"FLAG\":0,\"BASE\":18}"  // [Template] Set JSON template
+	#endif  // ESP8266
+#endif
+
+#ifdef EZBULB_FLOOD_V1_BUILD
+	#define PROJECT                "EZBulb"         // PROJECT is used as the default topic delimiter
+	#define MODULE                 EZBULB_FLOOD_V1        // EZBulb
+	#define DEFAULT_LIGHT_DIMMER        100
+	#ifdef ESP8266
+		#define FALLBACK_MODULE        EZBULB_FLOOD_V1      // [Module2] Select default module on fast reboot where USER_MODULE is user template
 		//#define USER_TEMPLATE "{\"NAME\":\"Generic\",\"GPIO\":[1,1,1,1,1,1,1,1,1,1,1,1,1,1],\"FLAG\":0,\"BASE\":18}"  // [Template] Set JSON template
 	#endif  // ESP8266
 #endif
@@ -132,6 +143,10 @@
 
 #ifdef EZBULB_V1_BUILD
   #define OTA_URL                "https://github.com/th3dstudio/EZHome/releases/latest/download/EZBulb.bin.gz"  // [OtaUrl]
+#endif
+
+#ifdef EZBULB_FLOOD_V1_BUILD
+  #define OTA_URL                "https://github.com/th3dstudio/EZHome/releases/latest/download/EZBulbFlood.bin.gz"  // [OtaUrl]
 #endif
 
 #endif  // ESP8266
@@ -197,6 +212,9 @@
 #ifdef EZBULB_V1_BUILD
   #define MQTT_GRPTOPIC          "ezbulbs"         // [GroupTopic] MQTT Group topic
 #endif
+#ifdef EZBULB_FLOOD_V1_BUILD
+  #define MQTT_GRPTOPIC          "ezbulbs"         // [GroupTopic] MQTT Group topic
+#endif
 #define MQTT_GROUPTOPIC_FORMAT false             // [SetOption75] GroupTopic replaces %topic% (false) or fixed topic cmnd/grouptopic (true)
 #define MQTT_BUTTON_TOPIC      "0"               // [ButtonTopic] MQTT button topic, "0" = same as MQTT_TOPIC, set to 'PROJECT "_BTN_%06X"' for unique topic including device MAC address
 #define MQTT_SWITCH_TOPIC      "0"               // [SwitchTopic] MQTT button topic, "0" = same as MQTT_TOPIC, set to 'PROJECT "_SW_%06X"' for unique topic including device MAC address
@@ -227,6 +245,9 @@
 #ifdef EZBULB_V1_BUILD
   #define MQTT_POWER_FORMAT    false             // [SetOption26] Switch between POWER or POWER1 for single power devices
 #endif
+#ifdef EZBULB_FLOOD_V1_BUILD
+  #define MQTT_POWER_FORMAT    false             // [SetOption26] Switch between POWER or POWER1 for single power devices
+#endif
 #define MQTT_APPEND_TIMEZONE   false             // [SetOption52] Append timezone to JSON time
 #define MQTT_BUTTON_SWITCH_FORCE_LOCAL   false   // [SetOption61] Force local operation when button/switch topic is set (false = off, true = on)
 #define MQTT_INDEX_SEPARATOR   false             // [SetOption64] Enable "_" instead of "-" as sensor index separator
@@ -244,6 +265,9 @@
 	#define FRIENDLY_NAME          "EZPlug"          // [FriendlyName] Friendlyname up to 32 characters used by webpages and Alexa
 #endif
 #ifdef EZBULB_V1_BUILD
+	#define FRIENDLY_NAME          "EZBulb"          // [FriendlyName] Friendlyname up to 32 characters used by webpages and Alexa
+#endif
+#ifdef EZBULB_FLOOD_V1_BUILD
 	#define FRIENDLY_NAME          "EZBulb"          // [FriendlyName] Friendlyname up to 32 characters used by webpages and Alexa
 #endif
 #define EMULATION              EMUL_NONE         // [Emulation] Select Belkin WeMo (single relay/light) or Hue Bridge emulation (multi relay/light) (EMUL_NONE, EMUL_WEMO or EMUL_HUE)
@@ -613,6 +637,9 @@
 #ifdef EZBULB_V1_BUILD
   #define USE_LIGHT                                // Add support for light control
 #endif
+#ifdef EZBULB_FLOOD_V1_BUILD
+  #define USE_LIGHT                                // Add support for light control
+#endif
 //#define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+5k code, +1k mem, 232 iram) - Disable by //
 //  #define USE_WS2812_DMA                         // ESP8266 only, DMA supports only GPIO03 (= Serial RXD) (+1k mem). When USE_WS2812_DMA is enabled expect Exceptions on Pow
   #define USE_WS2812_RMT  0                      // ESP32 only, hardware RMT support (default). Specify the RMT channel 0..7. This should be preferred to software bit bang.
@@ -626,6 +653,11 @@
 //#define USE_SONOFF_L1                            // Add support for Sonoff L1 led control
 //#define USE_ELECTRIQ_MOODL                       // Add support for ElectriQ iQ-wifiMOODL RGBW LED controller (+0k3 code)
 #ifdef EZBULB_V1_BUILD
+  #define USE_LIGHT_PALETTE                        // Add support for color palette (+0k7 code)
+  #define USE_LIGHT_VIRTUAL_CT                     // Add support for Virtual White Color Temperature (+1.1k code)
+  #define USE_DGR_LIGHT_SEQUENCE                   // Add support for device group light sequencing (requires USE_DEVICE_GROUPS) (+0k2 code)
+#endif
+#ifdef EZBULB_FLOOD_V1_BUILD
   #define USE_LIGHT_PALETTE                        // Add support for color palette (+0k7 code)
   #define USE_LIGHT_VIRTUAL_CT                     // Add support for Virtual White Color Temperature (+1.1k code)
   #define USE_DGR_LIGHT_SEQUENCE                   // Add support for device group light sequencing (requires USE_DEVICE_GROUPS) (+0k2 code)
