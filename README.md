@@ -2,7 +2,7 @@
 
 ## Features
 
-- Built on Tasmota 11.0.0
+- Built on Tasmota 13.2.0
 - Presetup for our EZHome products
 	- EZPlug
 	- EZPlug Plus
@@ -24,11 +24,11 @@ Download the firmware for your device and upload it to the device through its we
 
 **EZPlugs** 
 
-- Templates and directions are located in our help center here: [https://www.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota/](https://www.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota//)
+- Templates and directions are located in our help center here: [https://www.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota/](https://www.th3dstudio.com/hc/product-information/ezplug/using-the-ezplug-with-vanilla-tasmota/)
 
 **EZBulbs**
 
-- Coming Soon
+- Refer to the BlakAdder page: [https://templates.blakadder.com/ezbulb_V1.html](https://templates.blakadder.com/ezbulb_V1.html)
 
 ## Contribute to the Tasmota Project
 
@@ -43,6 +43,8 @@ You can contribute to Tasmota by
 ## Credits
 
 People helping to keep the show on the road:
+- Sfromis providing extensive user support
+- Barbudor providing user support and code fixes and additions
 - David Lang providing initial issue resolution and code optimizations
 - Heiko Krupp for his IRSend, HTU21, SI70xx and Wemo/Hue emulation drivers
 - Wiktor Schmidt for Travis CI implementation
@@ -68,7 +70,7 @@ People helping to keep the show on the road:
 - Joel Stein, digiblur and Shantur Rathore for their Tuya research and driver
 - Frogmore42 for providing many issue answers
 - Jason2866 for platformio support and providing many issue answers
-- Blakadder for managing the new document site and providing template management
+- Blakadder for managing the document site and providing template management
 - Stephan Hadinger for refactoring light driver, enhancing HueEmulation, LVGL, Zigbee and Berry support
 - tmo for designing the official Tasmota logo
 - Stefan Bode for his Shutter and Deep sleep drivers
@@ -82,4 +84,4 @@ People helping to keep the show on the road:
 
 ## License
 
-This program is licensed under GPL-3.0
+This program is licensed under GPL-3.0-only

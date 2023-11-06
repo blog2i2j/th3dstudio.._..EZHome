@@ -60,9 +60,15 @@ typedef struct be_ctypes_classes_t {
     const be_ctypes_class_t * classes;
 } be_ctypes_classes_t;
 
-BE_EXPORT_VARIABLE const bclass be_class_ctypes;
+#ifdef __cplusplus
+extern "C" {
+#endif
+    extern const bclass be_class_ctypes_bytes;
+#ifdef __cplusplus
+}
+#endif
 
-static void ctypes_register_class(bvm *vm, const bclass * ctypes_class, const be_ctypes_structure_t * definitions) {
+static void ctypes_register_class(bvm *vm, const bclass * ctypes_class) {
     be_pushntvclass(vm, ctypes_class);
     be_setglobal(vm, str(ctypes_class->name));
     be_pop(vm, 1);

@@ -29,7 +29,7 @@ void *be_audio_opus_decoder_init_ntv(int freq, int channels) {
 
   return buf;
 }
-int32_t be_audio_opus_decoder_init(struct bvm *vm) {
+int be_audio_opus_decoder_init(struct bvm *vm) {
   return be_call_c_func(vm, (void*) &be_audio_opus_decoder_init_ntv, "+.p", "i[i]");
 }
 
@@ -38,13 +38,13 @@ void *be_audio_opus_decoder_deinit_ntv(OpusDecoder* buf) {
   if (buf) BE_EXPLICIT_FREE(buf);
   return NULL;
 }
-int32_t be_audio_opus_decoder_deinit(struct bvm *vm) {
+int be_audio_opus_decoder_deinit(struct bvm *vm) {
   return be_call_c_func(vm, (void*) &be_audio_opus_decoder_deinit_ntv, "", ".");
 }
 
 
 // decode(payload:bytes) -> pcm:bytes()
-int32_t be_audio_opus_decoder_decode(struct bvm *vm) {
+int be_audio_opus_decoder_decode(struct bvm *vm) {
   int32_t argc = be_top(vm);
   be_call_c_func(vm, NULL, NULL, ".(bytes)[ii]");
 
@@ -74,17 +74,11 @@ int32_t be_audio_opus_decoder_decode(struct bvm *vm) {
   be_return(vm);
 }
 
-#include "be_fixed_be_class_audio_opus_decoder.h"
-
-void be_load_driver_audio_opus_decoder(bvm *vm) {
-  be_pushntvclass(vm, &be_class_audio_opus_decoder);
-  be_setglobal(vm, "OpusDecoder");
-  be_pop(vm, 1);
-}
+#include "be_fixed_be_class_AudioOpusDecoder.h"
 
 /* @const_object_info_begin
 
-class be_class_audio_opus_decoder (scope: global, name: OpusDecoder) {
+class be_class_AudioOpusDecoder (scope: global, name: AudioOpusDecoder, strings: weak) {
   .p, var
   init, func(be_audio_opus_decoder_init)
   deinit, func(be_audio_opus_decoder_deinit)

@@ -4,16 +4,17 @@ This is for our reference to make sure to retain changes made to the core files 
 
 ----------
 
-- `platformio_override.ini`
-	- just build for tasmota env
-- **tasmota**
+- 📁`tasmota`
 	- `my_user_config.h`
 		- Setup of our baseline for the products and compile options
-	- `settings.ino`
-		- Enable light fade by default for better user experience
-	- `tasmota.h`
-		- Add power Calibration for EZPlug Plus
-	- `tasmota_template.h`
-		- Add EZHome Product Templates
-	- `xdrv_01_webserver.ino`
-		- Change footer to TH3D EZHome info
+	- 📁`tasmota_support`
+		- `settings.ino`
+			- Enable light fade by default for better user experience
+    - 📁`include`
+    	- `tasmota.h`
+			- Add power Calibration for EZPlug Plus
+		- `tasmota_template.h`
+			- Add EZHome Product Templates
+	- 📁`tasmota_xdrv_driver`
+		- `xdrv_01_webserver.ino`
+			- Change footer to TH3D EZHome info
