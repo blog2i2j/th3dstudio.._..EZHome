@@ -238,6 +238,9 @@ void Bl6523Init(void)
       {
         ClaimSerial();
       }
+#ifdef ESP32
+      AddLog(LOG_LEVEL_DEBUG, PSTR("BL6: Serial UART%d and UART%d"), Bl6523RxSerial->getUart(), Bl6523TxSerial->getUart());
+#endif
       Bl6523.type = 1;
       Energy->phase_count = 1;
       AddLog(LOG_LEVEL_DEBUG, PSTR("BL6:Init Success" ));
@@ -261,21 +264,21 @@ bool Bl6523Command(void) {
   }
   else if (CMND_POWERSET == Energy->command_code) {
     if (XdrvMailbox.data_len) {
-      if ((abs_value > 100) && (abs_value < 200000)) {    // Between 1.00 and 2000.00 W
+      if ((abs_value > 100) && (abs_value < 2000000)) {    // Between 1.00 and 20000.00 W
         XdrvMailbox.payload = abs_value;
       }
     }
   }
   else if (CMND_VOLTAGESET == Energy->command_code) {
     if (XdrvMailbox.data_len) {
-      if ((abs_value > 10000) && (abs_value < 26000)) {   // Between 100.00 and 260.00 V
+      if ((abs_value > 10000) && (abs_value < 40000)) {   // Between 100.00 and 400.00 V
         XdrvMailbox.payload = abs_value;
       }
     }
   }
   else if (CMND_CURRENTSET == Energy->command_code) {
     if (XdrvMailbox.data_len) {
-      if ((abs_value > 1000) && (abs_value < 1000000)) {  // Between 10.00 mA and 10.00000 A
+      if ((abs_value > 1000) && (abs_value < 10000000)) {  // Between 10.00 mA and 100.00000 A
         XdrvMailbox.payload = abs_value;
       }
     }

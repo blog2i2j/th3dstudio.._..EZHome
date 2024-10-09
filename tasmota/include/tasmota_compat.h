@@ -23,7 +23,7 @@
 #include <esp8266toEsp32.h>
 // Modul
 #undef MODULE
-#define MODULE WEMOS // [Module] Select default model
+#define MODULE EZPLUG_V2 // [Module] Select default model
 #endif  // ESP32
 
 #ifdef ESP8266

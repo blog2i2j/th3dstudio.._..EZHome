@@ -25,14 +25,17 @@ import matter
 
 class Matter_Plugin_Light1 : Matter_Plugin_Light0
   static var TYPE = "light1"                                # name of the plug-in in json
-  static var DISPLAY_NAME = "Light 1 Dimmer"                        # display name of the plug-in
+  static var DISPLAY_NAME = "Light 1 Dimmer"                # display name of the plug-in
+  static var ARG  = "light"                         # additional argument name (or empty if none)
+  static var ARG_HINT = "(opt) Light number"
+  # static var UPDATE_TIME = 250                      # update every 250ms
   static var CLUSTERS  = matter.consolidate_clusters(_class, {
     # 0x001D: inherited                                     # Descriptor Cluster 9.5 p.453
     # 0x0003: inherited                                     # Identify 1.2 p.16
     # 0x0004: inherited                                     # Groups 1.3 p.21
     # 0x0005: inherited                                     # Scenes 1.4 p.30 - no writable
-    # 0x0006: inherited                                     # On/Off 1.5 p.48
-    0x0008: [0,2,3,0x0F,0x11,0xFFFC,0xFFFD],                # Level Control 1.6 p.57
+    # 0x0006: [0],                                    # On/Off 1.5 p.48
+    0x0008: [0,2,3,0x0F,0x11],                      # Level Control 1.6 p.57
   })
   static var UPDATE_COMMANDS = matter.UC_LIST(_class, "Bri")
   static var TYPES = { 0x0101: 2 }                  # Dimmable Light
@@ -43,24 +46,57 @@ class Matter_Plugin_Light1 : Matter_Plugin_Light0
   # var clusters                                      # map from cluster to list of attributes, typically constructed from CLUSTERS hierachy
   # var tick                                          # tick value when it was last updated
   # var node_label                                    # name of the endpoint, used only in bridge mode, "" if none
+  # var tasmota_relay_index                             # Relay number in Tasmota (1 based), nil for internal light
   # var shadow_onoff                                  # (bool) status of the light power on/off
+  # var light_index                                   # index number when using `light.get()` and `light.set()`
   var shadow_bri                                    # (int 0..254) brightness before Gamma correction - as per Matter 255 is not allowed
 
   #############################################################
   # Constructor
   def init(device, endpoint, arguments)
-    super(self).init(device, endpoint, arguments)
     self.shadow_bri = 0
+    super(self).init(device, endpoint, arguments)
+  end
+
+  #############################################################
+  # parse_configuration
+  #
+  # Parse configuration map
+  def parse_configuration(config)
+    # with Light0 we always need relay number but we don't for Light1/2/3 so self.tasmota_relay_index may be `nil`
+    if self.BRIDGE
+      self.tasmota_relay_index = int(config.find(self.ARG #-'relay'-#, nil))
+      if (self.tasmota_relay_index != nil && self.tasmota_relay_index <= 0)    self.tasmota_relay_index = 1    end
+    else
+      if (self.tasmota_relay_index == nil) && (self.TYPE == "light1")   # only if `light1` and not for subclasses
+        var light_index_arg = config.find(self.ARG #-'light'-#)
+        if (light_index_arg == nil)
+          if (tasmota.get_option(68) == 0)    # if default mode, and `SO68 0`, check if we have split RGB/W
+            import light
+            if (light.get(1) != nil)
+              self.light_index = 1                        # default value is `0` from superclass
+            end
+          end
+        else
+          self.light_index = int(light_index_arg) - 1     # internal is 0-based
+        end
+      end
+    end
   end
 
   #############################################################
   # Update shadow
   #
   def update_shadow()
-    if !self.VIRTUAL
+    if !self.VIRTUAL && !self.BRIDGE
       import light
-      var light_status = light.get()
+      var light_status = light.get(self.light_index)
       if light_status != nil
+        var pow = light_status.find('power', nil)
+        if pow != self.shadow_onoff
+          self.attribute_updated(0x0006, 0x0000)
+          self.shadow_onoff = pow
+        end
         var bri = light_status.find('bri', nil)
         if bri != nil
           bri = tasmota.scale_uint(bri, 0, 255, 0, 254)
@@ -83,16 +119,13 @@ class Matter_Plugin_Light1 : Matter_Plugin_Light0
     if (bri_254 < 0)    bri_254 = 0     end
     if (bri_254 > 254)  bri_254 = 254   end
     pow = (pow != nil) ? bool(pow) : nil        # nil or bool
-    if !self.VIRTUAL
-      import light
-      var bri_255 = tasmota.scale_uint(bri_254, 0, 254, 0, 255)
-      if pow == nil
-        light.set({'bri': bri_255})
-      else
-        light.set({'bri': bri_255, 'power': pow})
+    if self.BRIDGE
+      var dimmer = tasmota.scale_uint(bri_254, 0, 254, 0, 100)
+      var ret = self.call_remote_sync("Dimmer", str(dimmer))
+      if ret != nil
+        self.parse_status(ret, 11)        # update shadow from return value
       end
-      self.update_shadow()
-    else
+    elif self.VIRTUAL
       if (pow != nil) && (pow != self.shadow_onoff)
         self.attribute_updated(0x0006, 0x0000)
         self.shadow_onoff = pow
@@ -101,6 +134,15 @@ class Matter_Plugin_Light1 : Matter_Plugin_Light0
         self.attribute_updated(0x0008, 0x0000)
         self.shadow_bri = bri_254
       end
+    else
+      import light
+      var bri_255 = tasmota.scale_uint(bri_254, 0, 254, 0, 255)
+      if pow == nil
+        light.set({'bri': bri_255}, self.light_index)
+      else
+        light.set({'bri': bri_255, 'power': pow}, self.light_index)
+      end
+      self.update_shadow()
     end
   end
 
@@ -125,15 +167,10 @@ class Matter_Plugin_Light1 : Matter_Plugin_Light0
         return tlv_solo.set(TLV.U1, 0)    #
       elif attribute == 0x0011          #  ---------- OnLevel / u1 ----------
         return tlv_solo.set(TLV.U1, self.shadow_bri)
-      elif attribute == 0xFFFC          #  ---------- FeatureMap / map32 ----------
-        return tlv_solo.set(TLV.U4, 0X01)    # OnOff
-      elif attribute == 0xFFFD          #  ---------- ClusterRevision / u2 ----------
-        return tlv_solo.set(TLV.U4, 5)    # "new data model format and notation"
       end
       
-    else
-      return super(self).read_attribute(session, ctx, tlv_solo)
     end
+    return super(self).read_attribute(session, ctx, tlv_solo)
   end
 
   #############################################################
@@ -192,15 +229,59 @@ class Matter_Plugin_Light1 : Matter_Plugin_Light0
   # update_virtual
   #
   # Update internal state for virtual devices
-  def update_virtual(payload_json)
-    var val_onoff = payload_json.find("Power")
-    var val_bri = payload_json.find("Bri")
+  def update_virtual(payload)
+    var val_onoff = payload.find("Power")
+    var val_bri = payload.find("Bri")
     if val_bri != nil
       self.set_bri(int(val_bri), val_onoff)
       return    # don't call super() because we already handeld 'Power'
     end
-    super(self).update_virtual(payload_json)
+    super(self).update_virtual(payload)
   end
+
+  #############################################################
+  # For Bridge devices
+  #############################################################
+  #############################################################
+  # Stub for updating shadow values (local copies of what we published to the Matter gateway)
+  #
+  # This call is synnchronous and blocking.
+  def parse_status(data, index)
+    super(self).parse_status(data, index)
+
+    if index == 11                              # Status 11
+      var dimmer = int(data.find("Dimmer"))     # 0..100
+      if dimmer != nil
+        var bri = tasmota.scale_uint(dimmer, 0, 100, 0, 254)
+        if bri != self.shadow_bri
+          self.attribute_updated(0x0008, 0x0000)
+          self.shadow_bri = bri
+        end
+      end
+    end
+  end
+
+  #############################################################
+  # web_values
+  #
+  # Show values of the remote device as HTML
+  def web_values()
+    import webserver
+    self.web_values_prefix()        # display '| ' and name if present
+    webserver.content_send(format("%s %s", self.web_value_onoff(self.shadow_onoff), self.web_value_dimmer()))
+  end
+
+  # Show on/off value as html
+  def web_value_dimmer()
+    var bri_html = ""
+    if self.shadow_bri != nil
+      var bri = tasmota.scale_uint(self.shadow_bri, 0, 254, 0, 100)
+      bri_html = format("%i%%", bri)
+    end
+    return  "&#128261; " + bri_html;
+  end
+  #############################################################
+  #############################################################
 
 end
 matter.Plugin_Light1 = Matter_Plugin_Light1

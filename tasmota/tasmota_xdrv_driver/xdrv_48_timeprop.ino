@@ -312,7 +312,7 @@ void ShowValues(void) {
     ResponseAppend_P(PSTR("\"CycleTime\":%d,"),cycleTimes[i]);
     ResponseAppend_P(PSTR("\"DeadTime\":%d,"),deadTimes[i]);
     ResponseAppend_P(PSTR("\"OutputInvert\":%d,"),opInverts[i]);
-    ResponseAppend_P(PSTR("\"FallbackPower\":%.2f,"),fallbacks[i]);
+    ResponseAppend_P(PSTR("\"FallbackPower\":%2_f,"),&fallbacks[i]);
     ResponseAppend_P(PSTR("\"MaxUpdateInterval\":%d"),maxIntervals[i]);
     ResponseAppend_P(i<TIMEPROP_NUM_OUTPUTS-1 ? PSTR("},") : PSTR("}"));
   }
@@ -344,6 +344,9 @@ bool Xdrv48(uint32_t function) {
       break;
     case FUNC_JSON_APPEND:
       ShowValues();
+      break;
+    case FUNC_ACTIVE:
+      result = true;
       break;
   }
   return result;
