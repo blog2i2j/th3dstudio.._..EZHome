@@ -55,20 +55,18 @@
 
 // -- Project -------------------------------------
 #ifdef EZPLUG_PLUS_V1_BUILD
-	#define PROJECT                "EZPlug"         // PROJECT is used as the default topic delimiter
-	#define MODULE                 EZPLUG_PLUS_V1   // EZPlug Plus
+	#define PROJECT                "EZPlug"        // PROJECT is used as the default topic delimiter
+	#define MODULE                 EZPLUG_PLUS_V1  // EZPlug Plus
 	#ifdef ESP8266
-		#define FALLBACK_MODULE        EZPLUG_PLUS_V1      // [Module2] Select default module on fast reboot where USER_MODULE is user template
-		//#define USER_TEMPLATE "{\"NAME\":\"Generic\",\"GPIO\":[1,1,1,1,1,1,1,1,1,1,1,1,1,1],\"FLAG\":0,\"BASE\":18}"  // [Template] Set JSON template
+		#define FALLBACK_MODULE    EZPLUG_PLUS_V1  // [Module2] Select default module on fast reboot where USER_MODULE is user template
 	#endif  // ESP8266
 #endif
 
 #ifdef EZPLUG_V2_BUILD
-	#define PROJECT                "EZPlug"         // PROJECT is used as the default topic delimiter
-	#define MODULE                 EZPLUG_V2   // EZPlug Plus
+	#define PROJECT                "EZPlugV2"      // PROJECT is used as the default topic delimiter
+	#define MODULE                 EZPLUG_V2       // EZPlug V2
 	#ifdef ESP32
-		#define FALLBACK_MODULE        EZPLUG_V2      // [Module2] Select default module on fast reboot where USER_MODULE is user template
-		//#define USER_TEMPLATE "{\"NAME\":\"Generic\",\"GPIO\":[1,1,1,1,1,1,1,1,1,1,1,1,1,1],\"FLAG\":0,\"BASE\":18}"  // [Template] Set JSON template
+		#define FALLBACK_MODULE    EZPLUG_V2       // [Module2] Select default module on fast reboot where USER_MODULE is user template
 	#endif  // ESP32C3
 #endif
 
