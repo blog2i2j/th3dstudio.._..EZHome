@@ -47,19 +47,13 @@
 #define CFG_HOLDER             4617              // [Reset 1] Change this value (max 32000) to load SECTION1 configuration parameters to flash
                                                  // If following define is disabled it increases configuration corruption detection BUT
                                                  //  it only allows firmware upgrades starting from version 6.6.0.11
-// -- EZHome Product Build Selection --------------
-// Uncomment the product build line that you are compiling for.
-
-#define EZPLUG_V2_BUILD
 
 // -- Project -------------------------------------
-#ifdef EZPLUG_V2_BUILD
-	#define PROJECT                "EZPlugV2"      // PROJECT is used as the default topic delimiter
-	#define MODULE                 EZPLUG_V2       // EZPlug V2
-	#ifdef ESP32
-		#define FALLBACK_MODULE    EZPLUG_V2       // [Module2] Select default module on fast reboot where USER_MODULE is user template
-	#endif  // ESP32C3
-#endif
+#define PROJECT                "EZPlugV2"        // PROJECT is used as the default topic delimiter
+#define MODULE                 EZPLUG_V2         // EZPlug V2
+#ifdef ESP32
+	#define FALLBACK_MODULE    EZPLUG_V2           // [Module2] Select default module on fast reboot where USER_MODULE is user template
+#endif  // ESP32C3
 
 #define SAVE_DATA              1                 // [SaveData] Save changed parameters to Flash (0 = disable, 1 - 3600 seconds)
 #define SAVE_STATE             true              // [SetOption0] Save changed power state to Flash (false = disable, true = enable)
