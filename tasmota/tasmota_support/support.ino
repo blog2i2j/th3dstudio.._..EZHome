@@ -832,9 +832,27 @@ int32_t UpdateDevicesPresent(int32_t change) {
   else if (devices_present >= POWER_SIZE) {           // Support up to uint32_t as bitmask
     difference = devices_present - POWER_SIZE;
     devices_present = POWER_SIZE;
+//    AddLog(LOG_LEVEL_DEBUG, PSTR("APP: Max 32 devices supported"));
   }
   TasmotaGlobal.devices_present = devices_present;
+
+//  AddLog(LOG_LEVEL_DEBUG_MORE, PSTR("DVC: DevicesPresent %d, Change %d"), TasmotaGlobal.devices_present, change);
+
   return difference;
+}
+
+void DevicesPresentNonDisplayOrLight(uint32_t &devices_claimed) {
+  uint32_t display_and_lights = 0;
+#ifdef USE_LIGHT
+  display_and_lights += LightDevices();               // Skip light(s)
+#endif  // USE_LIGHT
+#ifdef USE_DISPLAY
+  display_and_lights += DisplayDevices();             // Skip display
+#endif  // USE_DISPLAY
+  uint32_t devices_present = TasmotaGlobal.devices_present - display_and_lights;
+  if (devices_claimed > devices_present) {
+    devices_claimed = devices_present;                // Reduce amount of claimed devices
+  }
 }
 
 char* GetPowerDevice(char* dest, uint32_t idx, size_t size, uint32_t option)
@@ -1133,6 +1151,8 @@ int GetCommandCode(char* destination, size_t destination_size, const char* needl
 
 bool DecodeCommand(const char* haystack, void (* const MyCommand[])(void), const uint8_t *synonyms = nullptr);
 bool DecodeCommand(const char* haystack, void (* const MyCommand[])(void), const uint8_t *synonyms) {
+  SHOW_FREE_MEM(PSTR("DecodeCommand"));
+
   GetTextIndexed(XdrvMailbox.command, CMDSZ, 0, haystack);  // Get prefix if available
   int prefix_length = strlen(XdrvMailbox.command);
   if (prefix_length) {
@@ -2280,28 +2300,50 @@ void TasShiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t va
 /*********************************************************************************************\
  * Sleep aware time scheduler functions borrowed from ESPEasy
 \*********************************************************************************************/
+/*
+// No need to use 64-bit
+inline uint64_t GetMicros64() {
+#ifdef ESP8266
+  return micros64();
+#endif
+#ifdef ESP32
+  return esp_timer_get_time();
+#endif
+}
 
-inline int32_t TimeDifference(uint32_t prev, uint32_t next)
-{
+inline int64_t TimeDifference64(uint64_t prev, uint64_t next) {
+  return ((int64_t) (next - prev));
+}
+
+int64_t TimePassedSince64(const uint64_t& timestamp) {
+  return TimeDifference64(timestamp, GetMicros64());
+}
+
+bool TimeReached64(const uint64_t& timer) {
+  return TimePassedSince64(timer) >= 0;
+}
+*/
+
+// Return the time difference as a signed value, taking into account the timers may overflow.
+// Returned timediff is between -24.9 days and +24.9 days.
+// Returned value is positive when "next" is after "prev"
+inline int32_t TimeDifference(uint32_t prev, uint32_t next) {
   return ((int32_t) (next - prev));
 }
 
-int32_t TimePassedSince(uint32_t timestamp)
-{
+int32_t TimePassedSince(uint32_t timestamp) {
   // Compute the number of milliSeconds passed since timestamp given.
   // Note: value can be negative if the timestamp has not yet been reached.
   return TimeDifference(timestamp, millis());
 }
 
-bool TimeReached(uint32_t timer)
-{
+bool TimeReached(uint32_t timer) {
   // Check if a certain timeout has been reached.
-  const long passed = TimePassedSince(timer);
-  return (passed >= 0);
+  // This is roll-over proof.
+  return TimePassedSince(timer) >= 0;
 }
 
-void SetNextTimeInterval(uint32_t& timer, const uint32_t step)
-{
+void SetNextTimeInterval(uint32_t& timer, const uint32_t step) {
   timer += step;
   const long passed = TimePassedSince(timer);
   if (passed < 0) { return; }   // Event has not yet happened, which is fine.
@@ -2314,13 +2356,11 @@ void SetNextTimeInterval(uint32_t& timer, const uint32_t step)
   timer = millis() + (step - passed);
 }
 
-int32_t TimePassedSinceUsec(uint32_t timestamp)
-{
+int32_t TimePassedSinceUsec(uint32_t timestamp) {
   return TimeDifference(timestamp, micros());
 }
 
-bool TimeReachedUsec(uint32_t timer)
-{
+bool TimeReachedUsec(uint32_t timer) {
   // Check if a certain timeout has been reached.
   const long passed = TimePassedSinceUsec(timer);
   return (passed >= 0);
@@ -2619,11 +2659,12 @@ void AddLogData(uint32_t loglevel, const char* log_data, const char* log_data_pa
     // Each entry has this format: [index][loglevel][log data]['\1']
 
     // Truncate log messages longer than MAX_LOGSZ which is the log buffer size minus 64 spare
+    char *too_long = nullptr;
     uint32_t log_data_len = strlen(log_data) + strlen(log_data_payload) + strlen(log_data_retained);
-    char too_long[TOPSZ];
     if (log_data_len > MAX_LOGSZ) {
-      snprintf_P(too_long, sizeof(too_long) - 20, PSTR("%s%s"), log_data, log_data_payload);   // 20 = strlen("... 123456 truncated")
-      snprintf_P(too_long, sizeof(too_long), PSTR("%s... %d truncated"), too_long, log_data_len);
+      too_long = (char*)malloc(TOPSZ);     // Use heap in favour of stack
+      snprintf_P(too_long, TOPSZ - 20, PSTR("%s%s"), log_data, log_data_payload);   // 20 = strlen("... 123456 truncated")
+      snprintf_P(too_long, TOPSZ, PSTR("%s... %d truncated"), too_long, log_data_len);
       log_data = too_long;
       log_data_payload = empty;
       log_data_retained = empty;
@@ -2644,6 +2685,7 @@ void AddLogData(uint32_t loglevel, const char* log_data, const char* log_data_pa
     }
     snprintf_P(TasmotaGlobal.log_buffer, LOG_BUFFER_SIZE, PSTR("%s%c%c%s%s%s%s\1"),
       TasmotaGlobal.log_buffer, TasmotaGlobal.log_buffer_pointer++, '0'+loglevel, mxtime, log_data, log_data_payload, log_data_retained);
+    if (too_long) { free(too_long); }
     TasmotaGlobal.log_buffer_pointer &= 0xFF;
     if (!TasmotaGlobal.log_buffer_pointer) {
       TasmotaGlobal.log_buffer_pointer++;  // Index 0 is not allowed as it is the end of char string
