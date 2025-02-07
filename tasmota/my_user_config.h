@@ -51,6 +51,10 @@
 // -- Project -------------------------------------
 #define PROJECT                "EZPlugV2"        // PROJECT is used as the default topic delimiter
 #define MODULE                 EZPLUG_V2         // EZPlug V2
+#ifdef ESP8266
+#define FALLBACK_MODULE        SONOFF_BASIC      // [Module2] Select default module on fast reboot where USER_MODULE is user template
+//#define USER_TEMPLATE "{\"NAME\":\"Generic\",\"GPIO\":[1,1,1,1,1,1,1,1,1,1,1,1,1,1],\"FLAG\":0,\"BASE\":18}"  // [Template] Set JSON template
+#endif  // ESP8266
 #ifdef ESP32
 	#define FALLBACK_MODULE    EZPLUG_V2           // [Module2] Select default module on fast reboot where USER_MODULE is user template
 #endif  // ESP32C3
@@ -372,7 +376,7 @@
 //#define MY_LANGUAGE            cs_CZ           // Czech in Czech
 //#define MY_LANGUAGE            de_DE           // German in Germany
 //#define MY_LANGUAGE            el_GR           // Greek in Greece
-#define MY_LANGUAGE              en_GB           // English in Great Britain. Enabled by Default
+//#define MY_LANGUAGE            en_GB           // English in Great Britain. Enabled by Default
 //#define MY_LANGUAGE            es_ES           // Spanish in Spain
 //#define MY_LANGUAGE            fr_FR           // French in France
 //#define MY_LANGUAGE            fy_NL           // Frysk in Nederland
@@ -521,36 +525,36 @@
 //#define USER_BACKLOG "<Any command separated by a semicolon (;)>"  // Add commands executed at firmware load or when command reset is executed
 
 // -- Optional modules ----------------------------
-//#define ROTARY_V1                                // Add support for Rotary Encoder as used in MI Desk Lamp (+0k8 code)
+#define ROTARY_V1                                // Add support for Rotary Encoder as used in MI Desk Lamp (+0k8 code)
   #define ROTARY_MAX_STEPS     10                // Rotary step boundary
-//#define USE_SONOFF_RF                            // Add support for Sonoff Rf Bridge (+3k2 code)
-//#define USE_RF_FLASH                           // Add support for flashing the EFM8BB1 chip on the Sonoff RF Bridge. C2CK must be connected to GPIO4, C2D to GPIO5 on the PCB (+2k7 code)
-//#define USE_SONOFF_SC                            // Add support for Sonoff Sc (+1k1 code)
-//#define USE_TUYA_MCU                             // Add support for Tuya Serial MCU
-//#define TUYA_DIMMER_ID       0                 // Default dimmer Id
-//#define USE_TUYA_TIME                          // Add support for Set Time in Tuya MCU
+#define USE_SONOFF_RF                            // Add support for Sonoff Rf Bridge (+3k2 code)
+  #define USE_RF_FLASH                           // Add support for flashing the EFM8BB1 chip on the Sonoff RF Bridge. C2CK must be connected to GPIO4, C2D to GPIO5 on the PCB (+2k7 code)
+#define USE_SONOFF_SC                            // Add support for Sonoff Sc (+1k1 code)
+#define USE_TUYA_MCU                             // Add support for Tuya Serial MCU
+  #define TUYA_DIMMER_ID       0                 // Default dimmer Id
+  #define USE_TUYA_TIME                          // Add support for Set Time in Tuya MCU
 //#define USE_TUYAMCUBR                            // Add support for TuyaMCU Bridge
-//#define USE_ARMTRONIX_DIMMERS                    // Add support for Armtronix Dimmers (+1k4 code)
-//#define USE_PS_16_DZ                             // Add support for PS-16-DZ Dimmer (+2k code)
-//#define USE_SONOFF_IFAN                          // Add support for Sonoff iFan02 and iFan03 (+2k code)
-//#define USE_BUZZER                               // Add support for a buzzer (+0k6 code)
-//#define USE_ARILUX_RF                            // Add support for Arilux RF remote controller (+0k8 code, 252 iram (non 2.3.0))
-//#define USE_SHUTTER                              // Add Shutter support for up to 4 shutter with different motortypes (+11k code)
+#define USE_ARMTRONIX_DIMMERS                    // Add support for Armtronix Dimmers (+1k4 code)
+#define USE_PS_16_DZ                             // Add support for PS-16-DZ Dimmer (+2k code)
+#define USE_SONOFF_IFAN                          // Add support for Sonoff iFan02 and iFan03 (+2k code)
+#define USE_BUZZER                               // Add support for a buzzer (+0k6 code)
+#define USE_ARILUX_RF                            // Add support for Arilux RF remote controller (+0k8 code, 252 iram (non 2.3.0))
+#define USE_SHUTTER                              // Add Shutter support for up to 4 shutter with different motortypes (+11k code)
 #define USE_DEEPSLEEP                            // Add support for deepsleep (+1k code)
-//#define USE_EXS_DIMMER                           // Add support for ES-Store Wi-Fi Dimmer (+1k5 code)
+#define USE_EXS_DIMMER                           // Add support for ES-Store Wi-Fi Dimmer (+1k5 code)
 //  #define EXS_MCU_CMNDS                          // Add command to send MCU commands (+0k8 code)
 //#define USE_HOTPLUG                              // Add support for sensor HotPlug
 #define USE_DEVICE_GROUPS                        // Add support for device groups (+5k5 code)
   #define DEVICE_GROUPS_ADDRESS 239,255,250,250  // Device groups multicast address
   #define DEVICE_GROUPS_PORT 4447                // Device groups multicast port
   #define USE_DEVICE_GROUPS_SEND                 // Add support for the DevGroupSend command (+0k6 code)
-//#define USE_PWM_DIMMER                           // Add support for MJ-SD01/acenx/NTONPOWER PWM dimmers (+2k3 code, DGR=0k7)
-  //#define USE_PWM_DIMMER_REMOTE                  // Add support for remote switches to PWM Dimmer (requires USE_DEVICE_GROUPS) (+0k6 code)
+#define USE_PWM_DIMMER                           // Add support for MJ-SD01/acenx/NTONPOWER PWM dimmers (+2k3 code, DGR=0k7)
+  #define USE_PWM_DIMMER_REMOTE                  // Add support for remote switches to PWM Dimmer (requires USE_DEVICE_GROUPS) (+0k6 code)
 //#define USE_KEELOQ                               // Add support for Jarolift rollers by Keeloq algorithm (+4k5 code)
-//#define USE_SONOFF_D1                            // Add support for Sonoff D1 Dimmer (+0k7 code)
-//#define USE_SHELLY_DIMMER                        // Add support for Shelly Dimmer (+3k code)
-//#define SHELLY_CMDS                            // Add command to send co-processor commands (+0k3 code)
-//#define SHELLY_FW_UPGRADE                      // Add firmware upgrade option for co-processor (+3k4 code)
+#define USE_SONOFF_D1                            // Add support for Sonoff D1 Dimmer (+0k7 code)
+#define USE_SHELLY_DIMMER                        // Add support for Shelly Dimmer (+3k code)
+  #define SHELLY_CMDS                            // Add command to send co-processor commands (+0k3 code)
+  #define SHELLY_FW_UPGRADE                      // Add firmware upgrade option for co-processor (+3k4 code)
 //  #define SHELLY_VOLTAGE_MON                     // Add support for reading voltage and current measurment (-0k0 code)
 //#define USE_MAGIC_SWITCH                         // Add Sonoff MagicSwitch support as implemented in Sonoff Basic R4 (+612B flash, +64B IRAM for intr)
 //  #define MAGICSWITCH_MIN_PULSE  4000            // Overridable minimum pulse, also overridable by command MagicSwitchPulse (not saved to flash)
@@ -593,13 +597,13 @@
 //#define USE_ADC_VCC                              // Display Vcc in Power status. Disable for use as Analog input on selected devices
 
 // -- One wire sensors ----------------------------
-//#define USE_DS18x20                              // Add support for DS18x20 sensors with id sort, single scan and read retry (+2k6 code)
+#define USE_DS18x20                              // Add support for DS18x20 sensors with id sort, single scan and read retry (+2k6 code)
 //  #define W1_PARASITE_POWER                      // Optimize for parasite powered sensors
 //  #define DS18x20_USE_ID_AS_NAME                 // Use last 3 bytes for naming of sensors
 //  #define DS18x20_USE_ID_ALIAS                   // Add support aliasing for DS18x20 sensors. See comments in xsns_05 files (+0k5 code)
 
 // -- I2C sensors ---------------------------------
-//#define USE_I2C                                  // I2C using library wire (+10k code, 0k2 mem, 124 iram)
+#define USE_I2C                                  // I2C using library wire (+10k code, 0k2 mem, 124 iram)
 #define I2CDRIVERS_0_31        0xFFFFFFFF          // Enable I2CDriver0  to I2CDriver31
 #define I2CDRIVERS_32_63       0xFFFFFFFF          // Enable I2CDriver32 to I2CDriver63
 #define I2CDRIVERS_64_95       0xFFFFFFFF          // Enable I2CDriver64 to I2CDriver95
@@ -1310,8 +1314,8 @@
  * Safe guard when needed defines are not done in Platformio                                                         *
 \*********************************************************************************************/
 
-#ifdef EZPLUG_V2_BUILD
-  #define OTA_URL                "https://github.com/th3dstudio/EZHome/releases/latest/download/EZPlugV2.bin.gz"  // [OtaUrl]
+#ifndef OTA_URL
+  #define OTA_URL ""
 #endif
 
 /*********************************************************************************************\
