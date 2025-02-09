@@ -10,3 +10,6 @@ This is for our reference to make sure to retain changes made to the core files 
     - 📁`include`
     	- `tasmota.h`
 			- Add power Calibration for EZPlug V2
+	- 📁`tasmota_xdrv_driver`
+	    - `xdrv_01_9_webserver.ino`
+		    - Customize Web UI Footer
