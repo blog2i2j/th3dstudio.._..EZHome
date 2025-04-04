@@ -25,7 +25,9 @@ import matter
 
 class Matter_Plugin_Light2 : Matter_Plugin_Light1
   static var TYPE = "light2"                                # name of the plug-in in json
-  static var DISPLAY_NAME = "Light 2 CT"                            # display name of the plug-in
+  static var DISPLAY_NAME = "Light 2 CT"                    # display name of the plug-in
+  static var ARG  = ""                                      # no arg for native light
+  static var ARG_HINT = "_Not used_"                        # Hint for entering the Argument (inside 'placeholder')
   static var CLUSTERS  = matter.consolidate_clusters(_class, {
     # 0x001D: inherited                                     # Descriptor Cluster 9.5 p.453
     # 0x0003: inherited                                     # Identify 1.2 p.16
@@ -33,7 +35,7 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
     # 0x0005: inherited                                     # Scenes 1.4 p.30 - no writable
     # 0x0006: inherited                                     # On/Off 1.5 p.48
     # 0x0008: inherited                                     # Level Control 1.6 p.57
-    0x0300: [7,8,0xF,0x400B,0x400C,0xFFFC,0xFFFD],          # Color Control 3.2 p.111
+    0x0300: [7,8,0xF,0x400B,0x400C],                        # Color Control 3.2 p.111
   })
   static var UPDATE_COMMANDS = matter.UC_LIST(_class, "CT")
   static var TYPES = { 0x010C: 2 }                  # Color Temperature Light
@@ -46,6 +48,7 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
   # var node_label                                    # name of the endpoint, used only in bridge mode, "" if none
   # var shadow_onoff                                  # (bool) status of the light power on/off
   # var shadow_bri                                    # (int 0..254) brightness before Gamma correction - as per Matter 255 is not allowed
+  # var light_index                                   # index number when using `light.get()` and `light.set()`
   var shadow_ct                                     # (int 153..500, default 325) Color Temperatur in mireds
   var ct_min, ct_max                                # min and max value allowed for CT, Alexa emulation requires to have a narrower range 200..380
 
@@ -53,7 +56,13 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
   # Constructor
   def init(device, endpoint, arguments)
     super(self).init(device, endpoint, arguments)
-    self.shadow_ct = 325
+    if !self.BRIDGE                                 # in BRIDGE mode keep default to nil
+      self.shadow_ct = 325
+      import light
+      if (light.get(1) != nil)
+        self.light_index = 1                        # default value is `0` from superclass
+      end
+    end
     self.update_ct_minmax()                         # read SetOption to adjust ct min/max
   end
 
@@ -61,17 +70,22 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
   # Update shadow
   #
   def update_shadow()
-    import light
-    self.update_ct_minmax()
-    super(self).update_shadow()
-    var light_status = light.get()
-    if light_status != nil
-      var ct = light_status.find('ct', nil)
-      if ct  == nil     ct = self.shadow_ct      end
-      if ct  != self.shadow_ct
-        self.attribute_updated(0x0300, 0x0007)
-        self.shadow_ct = ct
+    if !self.VIRTUAL && !self.BRIDGE
+      import light
+      self.update_ct_minmax()
+      super(self).update_shadow()
+      # check if the light RGB/CT with split mode, i.e. CT is in `light.get(1)`
+      var light_status = light.get(self.light_index)
+      if light_status != nil
+        var ct = light_status.find('ct', nil)
+        if ct  == nil     ct = self.shadow_ct      end
+        if ct  != self.shadow_ct
+          self.attribute_updated(0x0300, 0x0007)
+          self.shadow_ct = ct
+        end
       end
+    else
+      super(self).update_shadow()
     end
   end
 
@@ -92,15 +106,20 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
   def set_ct(ct)
     if ct < self.ct_min  ct = self.ct_min   end
     if ct > self.ct_max  ct = self.ct_max   end
-    if !self.VIRTUAL
-      import light
-      light.set({'ct': ct})
-      self.update_shadow()
-    else
+    if self.BRIDGE
+      var ret = self.call_remote_sync("CT", str(ct))
+      if ret != nil
+        self.parse_status(ret, 11)        # update shadow from return value
+      end
+    elif self.VIRTUAL
       if ct  != self.shadow_ct
         self.attribute_updated(0x0300, 0x0007)
         self.shadow_ct = ct
       end
+    else
+      import light
+      light.set({'ct': ct}, self.light_index)
+      self.update_shadow()
     end
   end
 
@@ -116,7 +135,7 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
     if   cluster == 0x0300              # ========== Color Control 3.2 p.111 ==========
       self.update_shadow_lazy()
       if   attribute == 0x0007          #  ---------- ColorTemperatureMireds / u2 ----------
-        return tlv_solo.set(TLV.U1, self.shadow_ct)
+        return tlv_solo.set_or_nil(TLV.U1, self.shadow_ct)   # if `nil` it is replaced with TLV.NULL
       elif attribute == 0x0008          #  ---------- ColorMode / u1 ----------
         return tlv_solo.set(TLV.U1, 2)# 2 = ColorTemperatureMireds
       elif attribute == 0x000F          #  ---------- Options / u1 ----------
@@ -128,13 +147,10 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
       
       elif attribute == 0xFFFC          #  ---------- FeatureMap / map32 ----------
         return tlv_solo.set(TLV.U4, 0x10)    # CT
-      elif attribute == 0xFFFD          #  ---------- ClusterRevision / u2 ----------
-        return tlv_solo.set(TLV.U4, 5)    # "new data model format and notation, FeatureMap support"
       end
         
-    else
-      return super(self).read_attribute(session, ctx, tlv_solo)
     end
+    return super(self).read_attribute(session, ctx, tlv_solo)
   end
 
   #############################################################
@@ -143,7 +159,6 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
   # returns a TLV object if successful, contains the response
   #   or an `int` to indicate a status
   def invoke_request(session, val, ctx)
-    import light
     var TLV = matter.TLV
     var cluster = ctx.cluster
     var command = ctx.command
@@ -153,6 +168,8 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
       self.update_shadow_lazy()
       if   command == 0x000A            # ---------- MoveToColorTemperature ----------
         var ct_in = val.findsubval(0)  # CT
+        if ct_in < self.ct_min  ct_in = self.ct_min   end
+        if ct_in > self.ct_max  ct_in = self.ct_max   end
         self.set_ct(ct_in)
         ctx.log = "ct:"+str(ct_in)
         self.publish_command('CT', ct_in)
@@ -178,13 +195,61 @@ class Matter_Plugin_Light2 : Matter_Plugin_Light1
   # update_virtual
   #
   # Update internal state for virtual devices
-  def update_virtual(payload_json)
-    var val_ct = int(payload_json.find("CT"))         # int or nil
+  def update_virtual(payload)
+    var val_ct = int(payload.find("CT"))         # int or nil
     if (val_ct != nil)
       self.set_ct(val_ct)
     end
-    super(self).update_virtual(payload_json)
+    super(self).update_virtual(payload)
   end
+
+  #############################################################
+  # For Bridge devices
+  #############################################################
+  #############################################################
+  # Stub for updating shadow values (local copies of what we published to the Matter gateway)
+  #
+  # TO BE OVERRIDDEN
+  # This call is synnchronous and blocking.
+  def parse_status(data, index)
+    super(self).parse_status(data, index)
+
+    if index == 11                              # Status 11
+      var ct = int(data.find("CT"))             # 153..500
+      if ct != nil
+        if ct != self.shadow_ct
+          if ct < self.ct_min   ct = self.ct_min    end
+          if ct > self.ct_max   ct = self.ct_max    end
+          self.attribute_updated(0x0300, 0x0007)
+          self.shadow_ct = ct
+        end
+      end
+    end
+  end
+
+  #############################################################
+  # web_values
+  #
+  # Show values of the remote device as HTML
+  def web_values()
+    import webserver
+    self.web_values_prefix()        # display '| ' and name if present
+    webserver.content_send(format("%s %s %s",
+                              self.web_value_onoff(self.shadow_onoff), self.web_value_dimmer(),
+                              self.web_value_ct()))
+  end
+
+  # Show on/off value as html
+  def web_value_ct()
+    var ct_html = ""
+    if self.shadow_ct != nil
+      var ct_k = (((1000000 / self.shadow_ct) + 25) / 50) * 50      # convert in Kelvin
+      ct_html = format("%iK", ct_k)
+    end
+    return  "&#9898; " + ct_html;
+  end
+  #############################################################
+  #############################################################
 
 end
 matter.Plugin_Light2 = Matter_Plugin_Light2
