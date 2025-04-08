@@ -13,3 +13,4 @@ This is for our reference to make sure to retain changes made to the core files 
 	- 📁`tasmota_xdrv_driver`
 	    - `xdrv_01_9_webserver.ino`
 		    - Customize Web UI Footer
+			- REMOVED OTA BECAUSE CUSTOMERS CANNOT READ...

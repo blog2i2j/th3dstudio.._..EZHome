@@ -364,12 +364,7 @@ const char HTTP_FORM_RST[] PROGMEM =
   "<div id='f1' style='display:block;'>"
   "<fieldset><legend><b>&nbsp;" D_RESTORE_CONFIGURATION "&nbsp;</b></legend>";
 const char HTTP_FORM_UPG[] PROGMEM =
-  "<div id='f1' style='display:block;'>"
-  "<fieldset><legend><b>&nbsp;" D_UPGRADE_BY_WEBSERVER "&nbsp;</b></legend>"
-  "<form method='get' action='u1'>"
-  "<br><b>" D_OTA_URL "</b><br><input id='o' placeholder=\"OTA_URL\" value=\"%s\"><br>"
-  "<br><button type='submit'>" D_START_UPGRADE "</button></form>"
-  "</fieldset><br><br>"
+  "<div id='f1' style='display:block;'>" //REMOVED OTA MENU TH3D
   "<fieldset><legend><b>&nbsp;" D_UPGRADE_BY_FILE_UPLOAD "&nbsp;</b></legend>";
 const char HTTP_FORM_RST_UPG[] PROGMEM =                  // ESP8266 or ESP32 dual partition
   "<form method='post' action='u2?fsz=' enctype='multipart/form-data'>"
